@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- Background utility: menu bar icon only, no Dock icon. -->
+  <key>LSUIElement</key>
+  <true/>
+  <key>NSScreenCaptureUsageDescription</key>
+  <string>TextPicker reads the screen region you select so it can recognize text locally on your Mac.</string>
+</dict>
+</plist>

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-ocr-language-status"
+description = "Enables the ocr_language_status command without any pre-configured scope."
+commands.allow = ["ocr_language_status"]
+
+[[permission]]
+identifier = "deny-ocr-language-status"
+description = "Denies the ocr_language_status command without any pre-configured scope."
+commands.deny = ["ocr_language_status"]

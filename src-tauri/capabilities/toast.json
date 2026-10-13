@@ -1,0 +1,11 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "toast",
+  "description": "Feedback HUD: only listens for messages",
+  "windows": [
+    "toast"
+  ],
+  "permissions": [
+    "core:event:default"
+  ]
+}

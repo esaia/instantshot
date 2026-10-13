@@ -1,0 +1,50 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+}
+
+:root {
+  color-scheme: light dark;
+  -webkit-font-smoothing: antialiased;
+  -webkit-user-select: none;
+  user-select: none;
+  cursor: default;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+/* Overlay and HUD windows are transparent; only the settings window paints a background. */
+html.transparent,
+html.transparent body {
+  background: transparent;
+  overflow: hidden;
+}
+
+html.settings body {
+  @apply bg-neutral-100 text-neutral-900 dark:bg-neutral-900 dark:text-neutral-100;
+}
+
+input,
+textarea {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* Browser preview only: room for the preview bar, and a busy backdrop behind the
+   transparent overlay/toast views so dimming and the selection hole are visible. */
+html.preview.settings body {
+  padding-top: 2rem;
+}
+
+html.preview.transparent body {
+  background:
+    repeating-linear-gradient(0deg, transparent 0 22px, rgb(0 0 0 / 0.06) 22px 23px),
+    linear-gradient(135deg, #f8fafc, #e2e8f0);
+}

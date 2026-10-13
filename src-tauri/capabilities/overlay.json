@@ -1,0 +1,15 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "overlay",
+  "description": "Selection overlays: listen for session events and report the selection",
+  "windows": [
+    "overlay-*"
+  ],
+  "permissions": [
+    "core:event:default",
+    "allow-overlay-session",
+    "allow-overlay-ready",
+    "allow-finish-selection",
+    "allow-cancel-capture"
+  ]
+}

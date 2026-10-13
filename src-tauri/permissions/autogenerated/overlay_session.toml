@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-overlay-session"
+description = "Enables the overlay_session command without any pre-configured scope."
+commands.allow = ["overlay_session"]
+
+[[permission]]
+identifier = "deny-overlay-session"
+description = "Denies the overlay_session command without any pre-configured scope."
+commands.deny = ["overlay_session"]
