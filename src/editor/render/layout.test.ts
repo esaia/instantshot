@@ -7,6 +7,7 @@ const style = (patch: Partial<EditorStyle>): EditorStyle => ({
   ...DEFAULT_STYLE,
   padding: 0,
   inset: 0,
+  aspect: "auto",
   ...patch,
 });
 

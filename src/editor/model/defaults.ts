@@ -44,7 +44,7 @@ export const DEFAULT_STYLE: EditorStyle = {
   shadowOpacity: 0.35,
   backgroundBlur: 0,
   chrome: "none",
-  aspect: "auto",
+  aspect: "16:9",
   crop: NO_CROP,
 };
 
