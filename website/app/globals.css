@@ -246,13 +246,27 @@ summary:focus-visible {
 /* ---------- Hero ---------- */
 
 .hero {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.12fr);
-  align-items: center;
-  gap: 56px;
+  display: flex;
+  justify-content: center;
   width: var(--wrap);
   margin: 0 auto;
-  padding: 168px 0 120px;
+  padding: 130px 0 110px;
+}
+
+.hero-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 28px 40px 32px;
+  text-align: center;
+}
+
+.hero-copy .lede {
+  margin-inline: auto;
+}
+
+.hero-copy .downloads {
+  justify-content: center;
 }
 
 .tag {
@@ -1103,18 +1117,11 @@ details p {
 
 /* ---------- Responsive ---------- */
 
-@media (max-width: 1200px) and (min-width: 961px) {
-  h1 {
-    font-size: 5.4vw;
-  }
-}
+
 
 @media (max-width: 960px) {
   .hero {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 64px;
-    gap: 56px;
-    padding-top: 132px;
+    padding-top: 120px;
   }
 
   .steps,
@@ -1199,6 +1206,522 @@ details p {
   .hud,
   .hl::after,
   h2 .hl::after {
+    animation: none;
+  }
+}
+
+/* Interactive text-capture demo under "How it works". */
+.try {
+  width: min(760px, 100%);
+  margin: 72px auto 0;
+}
+
+/* ---------- Hero capture animation ---------- */
+
+/*
+ * One 16s timeline, every element keyed to the same percentages:
+ *   0–14%  idle (readable hero)
+ *  14–20%  ⇧⌘1 keys, page dims, crosshair moves to the corner
+ *  20–31%  drag: the selection grows over the hero
+ *  31–41%  size label + Copy / Edit bar, cursor clicks Edit
+ *  42–90%  framed on a wallpaper: tide → sunset → candy, "Copied" toast
+ *  90–100% back to normal
+ */
+.hc {
+  --hc-time: 16s;
+  position: relative;
+  isolation: isolate;
+}
+
+.hc-shot,
+.hc-bg,
+.hc-hole,
+.hc-size,
+.hc-keys,
+.hc-bar,
+.hc-bar-edit,
+.hc-toast,
+.hc-cross,
+.hc-arrow {
+  animation-duration: var(--hc-time);
+  animation-iteration-count: infinite;
+  animation-fill-mode: both;
+  animation-timing-function: linear;
+}
+
+.hc-shot {
+  position: relative;
+  z-index: 1;
+  border-radius: 26px;
+  animation-name: hc-shot;
+}
+
+@keyframes hc-shot {
+  0%,
+  41% {
+    background-color: rgb(15 18 23 / 0);
+    box-shadow: 0 0 0 0 rgb(0 0 0 / 0);
+    animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  45%,
+  89% {
+    background-color: var(--night);
+    box-shadow:
+      0 0 0 1px rgb(255 255 255 / 0.06),
+      0 40px 80px -24px rgb(0 0 0 / 0.75);
+    animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  94%,
+  100% {
+    background-color: rgb(15 18 23 / 0);
+    box-shadow: 0 0 0 0 rgb(0 0 0 / 0);
+  }
+}
+
+/* Wallpapers behind the framed hero. */
+.hc-bgs {
+  position: absolute;
+  inset: -34px -48px;
+  z-index: 0;
+  overflow: hidden;
+  border-radius: 14px;
+  pointer-events: none;
+}
+
+.hc-bg {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+}
+
+.hc-bg-tide {
+  animation-name: hc-bg-tide;
+  background:
+    radial-gradient(60% 55% at 15% 20%, #9cc3f5 0%, transparent 60%),
+    radial-gradient(50% 60% at 90% 85%, #e6eefb 0%, transparent 55%),
+    radial-gradient(70% 70% at 65% 35%, #3a7de0 0%, transparent 65%),
+    #1d3fa8;
+}
+
+.hc-bg-sunset {
+  animation-name: hc-bg-sunset;
+  background:
+    radial-gradient(60% 60% at 12% 18%, #f6d36f 0%, transparent 60%),
+    radial-gradient(60% 70% at 88% 25%, #c43a5a 0%, transparent 60%),
+    radial-gradient(70% 60% at 50% 100%, #2f9a8f 0%, transparent 60%),
+    #e8573f;
+}
+
+.hc-bg-candy {
+  animation-name: hc-bg-candy;
+  background: linear-gradient(135deg, #e46fd4, #b471f0 55%, #6a98e0);
+}
+
+@keyframes hc-bg-tide {
+  0%,
+  42% {
+    opacity: 0;
+  }
+  46%,
+  58% {
+    opacity: 1;
+  }
+  62%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes hc-bg-sunset {
+  0%,
+  58% {
+    opacity: 0;
+  }
+  62%,
+  73% {
+    opacity: 1;
+  }
+  77%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes hc-bg-candy {
+  0%,
+  73% {
+    opacity: 0;
+  }
+  77%,
+  89% {
+    opacity: 1;
+  }
+  94%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.hc-fx {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* The selection: a border plus a huge shadow that dims everything outside it. */
+.hc-hole {
+  position: absolute;
+  left: -14px;
+  top: -14px;
+  box-shadow:
+    0 0 0 1px rgb(255 255 255 / 0.95),
+    0 0 0 2px rgb(0 0 0 / 0.35),
+    0 0 0 200vmax rgb(0 0 0 / 0.32);
+  animation-name: hc-hole;
+}
+
+/* The border stays invisible until the drag starts, so the zero-size selection isn't a dot. */
+@keyframes hc-hole {
+  0%,
+  13.9% {
+    width: 0;
+    height: 0;
+    opacity: 0;
+    box-shadow:
+      0 0 0 1px rgb(255 255 255 / 0),
+      0 0 0 2px rgb(0 0 0 / 0),
+      0 0 0 200vmax rgb(0 0 0 / 0.32);
+  }
+  14%,
+  20% {
+    width: 0;
+    height: 0;
+    opacity: 1;
+    box-shadow:
+      0 0 0 1px rgb(255 255 255 / 0),
+      0 0 0 2px rgb(0 0 0 / 0),
+      0 0 0 200vmax rgb(0 0 0 / 0.32);
+    animation-timing-function: cubic-bezier(0.45, 0, 0.25, 1);
+  }
+  21% {
+    box-shadow:
+      0 0 0 1px rgb(255 255 255 / 0.95),
+      0 0 0 2px rgb(0 0 0 / 0.35),
+      0 0 0 200vmax rgb(0 0 0 / 0.32);
+  }
+  31%,
+  41% {
+    width: calc(100% + 28px);
+    height: calc(100% + 28px);
+    opacity: 1;
+    box-shadow:
+      0 0 0 1px rgb(255 255 255 / 0.95),
+      0 0 0 2px rgb(0 0 0 / 0.35),
+      0 0 0 200vmax rgb(0 0 0 / 0.32);
+  }
+  43%,
+  100% {
+    width: calc(100% + 28px);
+    height: calc(100% + 28px);
+    opacity: 0;
+    box-shadow:
+      0 0 0 1px rgb(255 255 255 / 0.95),
+      0 0 0 2px rgb(0 0 0 / 0.35),
+      0 0 0 200vmax rgb(0 0 0 / 0.32);
+  }
+}
+
+.hc-size {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 8px);
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgb(0 0 0 / 0.75);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  animation-name: hc-size;
+}
+
+@keyframes hc-size {
+  0%,
+  30% {
+    opacity: 0;
+  }
+  32%,
+  41% {
+    opacity: 1;
+  }
+  42%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.hc-keys {
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 40px);
+  display: flex;
+  gap: 6px;
+  transform: translateX(-50%);
+  animation-name: hc-keys;
+}
+
+@keyframes hc-keys {
+  0%,
+  13% {
+    opacity: 0;
+    translate: 0 8px;
+  }
+  15%,
+  21% {
+    opacity: 1;
+    translate: 0 0;
+  }
+  23%,
+  100% {
+    opacity: 0;
+    translate: 0 0;
+  }
+}
+
+.hc-keys kbd {
+  display: grid;
+  place-items: center;
+  min-width: 40px;
+  height: 40px;
+  padding: 0 10px;
+  border-radius: 10px;
+  background: var(--panel-2);
+  box-shadow:
+    inset 0 -3px 0 rgb(255 255 255 / 0.06),
+    0 0 0 1px var(--line);
+  color: #fff;
+  font-family: inherit;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.hc-bar {
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 30px);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 230px;
+  height: 42px;
+  padding: 4px;
+  border-radius: 12px;
+  background: rgb(23 23 23 / 0.95);
+  box-shadow: 0 16px 40px -10px rgb(0 0 0 / 0.7);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  transform: translateX(-50%);
+  animation-name: hc-bar;
+}
+
+@keyframes hc-bar {
+  0%,
+  31% {
+    opacity: 0;
+    translate: 0 8px;
+  }
+  33%,
+  41% {
+    opacity: 1;
+    translate: 0 0;
+  }
+  43%,
+  100% {
+    opacity: 0;
+    translate: 0 0;
+  }
+}
+
+.hc-bar span {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  border-radius: 9px;
+}
+
+.hc-bar-copy {
+  flex: 1.2;
+  background: #fff;
+  color: #111;
+}
+
+.hc-bar-edit {
+  flex: 1;
+  animation-name: hc-bar-edit;
+}
+
+@keyframes hc-bar-edit {
+  0%,
+  38% {
+    background: rgb(255 255 255 / 0);
+  }
+  39%,
+  41% {
+    background: rgb(255 255 255 / 0.22);
+  }
+  42%,
+  100% {
+    background: rgb(255 255 255 / 0);
+  }
+}
+
+.hc-bar-x {
+  flex: 0.5;
+  color: rgb(255 255 255 / 0.7);
+}
+
+.hc-toast {
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 40px);
+  padding: 9px 18px;
+  border-radius: 99px;
+  background: rgb(23 23 23 / 0.95);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  transform: translateX(-50%);
+  animation-name: hc-toast;
+}
+
+@keyframes hc-toast {
+  0%,
+  80% {
+    opacity: 0;
+    translate: 0 8px;
+  }
+  82%,
+  89% {
+    opacity: 1;
+    translate: 0 0;
+  }
+  92%,
+  100% {
+    opacity: 0;
+    translate: 0 0;
+  }
+}
+
+/* Cursors: a crosshair while selecting, an arrow for clicking Edit. */
+.hc-cross,
+.hc-arrow {
+  position: absolute;
+  width: 26px;
+  height: 26px;
+  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.8));
+}
+
+.hc-cross {
+  margin: -13px 0 0 -13px;
+  fill: none;
+  stroke: #fff;
+  stroke-width: 1.6;
+  animation-name: hc-cross;
+}
+
+@keyframes hc-cross {
+  0%,
+  14% {
+    left: 70%;
+    top: 75%;
+    opacity: 0;
+    animation-timing-function: cubic-bezier(0.45, 0, 0.25, 1);
+  }
+  15% {
+    left: 70%;
+    top: 75%;
+    opacity: 1;
+    animation-timing-function: cubic-bezier(0.45, 0, 0.25, 1);
+  }
+  20% {
+    left: -14px;
+    top: -14px;
+    opacity: 1;
+    animation-timing-function: cubic-bezier(0.45, 0, 0.25, 1);
+  }
+  31% {
+    left: calc(100% + 14px);
+    top: calc(100% + 14px);
+    opacity: 1;
+  }
+  32%,
+  100% {
+    left: calc(100% + 14px);
+    top: calc(100% + 14px);
+    opacity: 0;
+  }
+}
+
+.hc-arrow {
+  margin: -4px 0 0 -6px;
+  fill: #fff;
+  stroke: #000;
+  stroke-width: 1.4;
+  stroke-linejoin: round;
+  animation-name: hc-arrow;
+}
+
+@keyframes hc-arrow {
+  0%,
+  31% {
+    left: calc(100% + 14px);
+    top: calc(100% + 14px);
+    opacity: 0;
+    scale: 1;
+  }
+  32% {
+    left: calc(100% + 14px);
+    top: calc(100% + 14px);
+    opacity: 1;
+    animation-timing-function: cubic-bezier(0.45, 0, 0.25, 1);
+  }
+  37% {
+    left: calc(50% + 40px);
+    top: calc(100% + 51px);
+    opacity: 1;
+    scale: 1;
+  }
+  39% {
+    left: calc(50% + 40px);
+    top: calc(100% + 51px);
+    scale: 0.85;
+  }
+  41% {
+    left: calc(50% + 40px);
+    top: calc(100% + 51px);
+    opacity: 1;
+    scale: 1;
+  }
+  44%,
+  100% {
+    left: calc(50% + 40px);
+    top: calc(100% + 51px);
+    opacity: 0;
+    scale: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hc-fx,
+  .hc-bgs {
+    display: none;
+  }
+
+  .hc-shot {
     animation: none;
   }
 }

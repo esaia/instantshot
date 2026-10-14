@@ -1,4 +1,5 @@
 import { DesktopDemo } from "./desktop-demo";
+import { HeroCapture } from "./hero-capture";
 import { PickLogo } from "./logo";
 
 const RELEASES = "https://github.com/esaia/textpicker/releases/latest";
@@ -30,18 +31,18 @@ function WindowsLogo() {
 const steps = [
   {
     keys: ["⇧", "⌘", "2"],
-    title: "Press the shortcut",
-    body: "The screen dims and your cursor turns into a crosshair, over any app. On Windows it’s Ctrl+Shift+2.",
+    title: "Copy any text",
+    body: "Drag over the words in a video, photo, PDF or app. They’re on your clipboard, with line breaks where the original has them. On Windows it’s Ctrl+Shift+2.",
   },
   {
-    keys: ["drag"],
-    title: "Drag over the text",
-    body: "Draw a box around a word, a line or a whole paragraph. Press Esc if you change your mind.",
+    keys: ["⇧", "⌘", "1"],
+    title: "Snip a screenshot",
+    body: "Drag over any part of the screen, then move or resize the selection. Copy it right away, or open it in the editor. On Windows it’s Ctrl+Shift+1.",
   },
   {
-    keys: ["⌘", "V"],
-    title: "Paste it anywhere",
-    body: "The text is already on your clipboard, with line breaks where the original has them.",
+    keys: ["edit"],
+    title: "Make it beautiful",
+    body: "Put it on a wallpaper, gradient or color with padding, rounded corners and a shadow. Add arrows, text or blur, then copy, save or drag it out.",
   },
 ];
 
@@ -55,7 +56,11 @@ const places = [
 const faqs = [
   {
     q: "Does my screen get uploaded anywhere?",
-    a: "No. TextPicker uses the text recognition built into your operating system: Apple Vision on macOS and Windows OCR on Windows. The selected area is processed in memory and then discarded. There’s no account, no analytics and no network request.",
+    a: "No. Text is recognized by your operating system’s built-in engine: Apple Vision on macOS and Windows OCR on Windows. Screenshots stay in memory until you copy or save them. There’s no account, no analytics and no network request.",
+  },
+  {
+    q: "What can I do with a screenshot?",
+    a: "Copy it straight from the selection, or open it in the editor: place it on a wallpaper (including your own desktop pictures), a gradient or a color, adjust padding, corners, shadow and size, and add arrows, shapes, text, blur or pixelation. Then copy it, save it, or drag it into any app.",
   },
   {
     q: "Which systems does it run on?",
@@ -66,8 +71,8 @@ const faqs = [
     a: "Whatever your system’s recognizer supports. On a current Mac that’s about 30 languages, including English, most European languages, Chinese, Japanese, Korean and Arabic. On Windows it uses the OCR languages installed for your profile.",
   },
   {
-    q: "Can I change the shortcut?",
-    a: "Yes. Pick any combination in Settings. TextPicker tells you if another app already uses it.",
+    q: "Can I change the shortcuts?",
+    a: "Yes, both of them. The defaults are ⇧⌘2 for text and ⇧⌘1 for screenshots (Ctrl+Shift+2 and Ctrl+Shift+1 on Windows). Pick any combination in Settings; TextPicker tells you if another app already uses it.",
   },
   {
     q: "What if it can’t read something?",
@@ -118,28 +123,29 @@ export default function Home() {
 
       <main id="top">
         <section className="hero" aria-labelledby="hero-title">
-          <div className="hero-copy">
-            <p className="tag">For macOS and Windows</p>
-            <h1 id="hero-title">
-              <span className="line">Copy any text</span>
-              <span className="line">you can see</span>
-              <span className="line">
-                <span className="hl">on screen.</span>
-              </span>
-            </h1>
-            <p className="lede">
-              Press a shortcut, drag over the words in a video, a photo, a scanned PDF or any app,
-              and paste them. Nothing to retype, nothing to upload.
-            </p>
-            <Downloads />
-            <p className="fineprint">Text is recognized on your device and never leaves it.</p>
-          </div>
-          <DesktopDemo />
+          <HeroCapture>
+            <div className="hero-copy">
+              <p className="tag">For macOS and Windows</p>
+              <h1 id="hero-title">
+                <span className="line">Snip anything.</span>
+                <span className="line">Copy any text</span>
+                <span className="line">
+                  <span className="hl">on screen.</span>
+                </span>
+              </h1>
+              <p className="lede">
+                Take beautiful screenshots or copy text from anything on your screen: videos,
+                photos, scanned PDFs, any app. One shortcut each, all on your device.
+              </p>
+              <Downloads />
+              <p className="fineprint">Nothing is uploaded. Your screen never leaves your device.</p>
+            </div>
+          </HeroCapture>
         </section>
 
         <section className="section" id="how" aria-labelledby="how-title">
           <h2 id="how-title">
-            Three moves. <span className="hl">No screenshots.</span>
+            Two shortcuts. <span className="hl">No busywork.</span>
           </h2>
           <ol className="steps">
             {steps.map((s) => (
@@ -154,6 +160,9 @@ export default function Home() {
               </li>
             ))}
           </ol>
+          <div className="try">
+            <DesktopDemo />
+          </div>
         </section>
 
         <section className="section split" aria-labelledby="where-title">
@@ -182,13 +191,14 @@ export default function Home() {
           </h2>
           <div className="privacy-grid">
             <p>
-              TextPicker reads only the area you select, using the recognizer that ships with your
-              operating system. The image lives in memory for a moment and is gone.
+              TextPicker reads only the area you select. Text is recognized by the engine that ships
+              with your operating system, and screenshots stay in memory until you copy or save
+              them.
             </p>
             <ul className="facts">
               <li>No uploads and no cloud OCR</li>
               <li>No account, analytics or tracking</li>
-              <li>Screenshots are never saved to disk</li>
+              <li>Screenshots are saved only when you save them</li>
               <li>Your clipboard is untouched if nothing is found</li>
             </ul>
           </div>
@@ -220,7 +230,8 @@ export default function Home() {
               <p>
                 I kept retyping text I could already see: a line from a video, a quote in a
                 screenshot, a paragraph locked inside a PDF. So I built the tool I wanted. One
-                shortcut, and the words are on my clipboard.
+                shortcut, and the words are on my clipboard. Then I added the screenshot tool I
+                always wished came with my computer.
               </p>
               <p>
                 TextPicker is small on purpose, and it runs entirely on your computer. If something
@@ -236,7 +247,7 @@ export default function Home() {
 
         <section className="closing" aria-labelledby="closing-title">
           <h2 id="closing-title">
-            Stop retyping <span className="hl">what’s on your screen.</span>
+            Your whole screen, <span className="hl">one shortcut away.</span>
           </h2>
           <Downloads />
           <p className="fineprint">Requires macOS 14 or later (Apple Silicon or Intel), or Windows 10 or 11.</p>
