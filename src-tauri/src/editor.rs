@@ -39,6 +39,9 @@ pub struct EditorImage {
     /// Backing scale factor of the captured display (pixels per logical unit).
     pub scale: f64,
     pub rgba: Vec<u8>,
+    /// Annotations drawn in the selection overlay (opaque JSON for the editor page, geometry in
+    /// logical px relative to the selection).
+    pub markup: Vec<serde_json::Value>,
 }
 
 impl EditorImage {
@@ -52,6 +55,32 @@ impl EditorImage {
                 1.0
             },
             rgba: bgra_to_rgba(frame),
+            markup: Vec::new(),
+        }
+    }
+
+    /// Draws a straight-alpha RGBA `layer` (the overlay's annotations) over the image. The layer
+    /// is stretched to the image size (nearest pixel), which absorbs rounding differences.
+    pub fn composite(&mut self, layer: &[u8], layer_w: u32, layer_h: u32) {
+        let (w, h) = (self.width as usize, self.height as usize);
+        let (lw, lh) = (layer_w as usize, layer_h as usize);
+        if lw == 0 || lh == 0 || layer.len() < lw * lh * 4 {
+            return;
+        }
+        for y in 0..h {
+            let ly = (y * lh / h).min(lh - 1);
+            for x in 0..w {
+                let lx = (x * lw / w).min(lw - 1);
+                let src = &layer[(ly * lw + lx) * 4..][..4];
+                let a = src[3] as u32;
+                if a == 0 {
+                    continue;
+                }
+                let dst = &mut self.rgba[(y * w + x) * 4..][..4];
+                for c in 0..3 {
+                    dst[c] = ((src[c] as u32 * a + dst[c] as u32 * (255 - a) + 127) / 255) as u8;
+                }
+            }
         }
     }
 
@@ -71,8 +100,9 @@ struct Inner {
     image: Option<Arc<EditorImage>>,
     /// A screenshot is waiting for the page to paint before the window is shown.
     pending_reveal: bool,
-    /// The editor was open behind other apps and is hidden while a capture runs.
-    stashed: bool,
+    /// Windows (editor, settings) that were open behind other apps and are hidden while a
+    /// capture runs.
+    stashed: Vec<&'static str>,
 }
 
 impl EditorState {
@@ -130,7 +160,13 @@ pub fn open(app: &AppHandle, image: EditorImage, display: &Display) -> tauri::Re
         let mut inner = state.lock();
         inner.image = Some(Arc::new(image));
         inner.pending_reveal = true;
-        inner.stashed = false;
+        // The editor is about to be shown anyway; other stashed windows go back behind it.
+        let others: Vec<_> = std::mem::take(&mut inner.stashed)
+            .into_iter()
+            .filter(|label| *label != EDITOR_LABEL)
+            .collect();
+        drop(inner);
+        order_back_all(app, others);
     }
 
     match app.get_webview_window(EDITOR_LABEL) {
@@ -179,8 +215,9 @@ fn build(app: &AppHandle) -> tauri::Result<WebviewWindow> {
     let builder = builder
         .title_bar_style(tauri::TitleBarStyle::Overlay)
         .hidden_title(true)
-        // Vertically centered in the page's toolbar (TOOLBAR_HEIGHT).
-        .traffic_light_position(tauri::LogicalPosition::new(18.0, 20.0));
+        // `y` sets the title bar height below the buttons, not their center; 29 centers them
+        // in the 52 px toolbar.
+        .traffic_light_position(tauri::LogicalPosition::new(20.0, 29.0));
     builder.build()
 }
 
@@ -235,29 +272,42 @@ fn reveal(app: &AppHandle) {
 }
 
 /// Called when a capture starts (main thread). Activating TextPicker for the selection overlay
-/// would pull an editor that sits behind other apps to the front, so hide it for the capture.
+/// would pull its windows that sit behind other apps (editor, settings) to the front, so hide
+/// them for the capture.
 pub fn stash_for_capture(app: &AppHandle) {
-    let Some(window) = app.get_webview_window(EDITOR_LABEL) else {
-        return;
-    };
-    if !window.is_visible().unwrap_or(false) || app_is_active() {
+    if app_is_active() {
         return;
     }
-    let _ = window.hide();
-    app.state::<EditorState>().lock().stashed = true;
+    let mut stashed = Vec::new();
+    for label in [EDITOR_LABEL, crate::SETTINGS_LABEL] {
+        let Some(window) = app.get_webview_window(label) else {
+            continue;
+        };
+        if window.is_visible().unwrap_or(false) && !window.is_minimized().unwrap_or(false) {
+            let _ = window.hide();
+            stashed.push(label);
+        }
+    }
+    app.state::<EditorState>().lock().stashed = stashed;
 }
 
-/// Called when a capture ends without opening the editor: put a stashed editor back behind the
-/// app that regains focus, where it was before.
+/// Called when a capture ends without opening the editor: put stashed windows back behind the
+/// app that regains focus, where they were before.
 pub fn unstash_after_capture(app: &AppHandle) {
-    if !std::mem::take(&mut app.state::<EditorState>().lock().stashed) {
+    let stashed = std::mem::take(&mut app.state::<EditorState>().lock().stashed);
+    order_back_all(app, stashed);
+}
+
+fn order_back_all(app: &AppHandle, labels: Vec<&'static str>) {
+    let windows: Vec<_> = labels
+        .into_iter()
+        .filter_map(|label| app.get_webview_window(label))
+        .collect();
+    if windows.is_empty() {
         return;
     }
-    let Some(window) = app.get_webview_window(EDITOR_LABEL) else {
-        return;
-    };
     // Queued after the focus restore, so the other app is already in front.
-    let _ = app.run_on_main_thread(move || order_back(&window));
+    let _ = app.run_on_main_thread(move || windows.iter().for_each(order_back));
 }
 
 #[cfg(target_os = "macos")]
@@ -284,6 +334,16 @@ fn order_back(window: &WebviewWindow) {
 #[cfg(not(target_os = "macos"))]
 fn order_back(window: &WebviewWindow) {
     let _ = window.show();
+}
+
+/// Annotations that came with the current image (see [`EditorImage::markup`]).
+pub fn current_markup(app: &AppHandle) -> Vec<serde_json::Value> {
+    app.state::<EditorState>()
+        .lock()
+        .image
+        .as_ref()
+        .map(|image| image.markup.clone())
+        .unwrap_or_default()
 }
 
 /// The current image in the wire format of [`encode_raw`].
@@ -322,6 +382,26 @@ pub fn close(app: &AppHandle, window: &tauri::Window) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn composites_layer_with_alpha_and_stretches_it() {
+        let mut image = EditorImage {
+            width: 2,
+            height: 2,
+            scale: 2.0,
+            rgba: [10, 20, 30, 255].repeat(4),
+            markup: Vec::new(),
+        };
+        // 1×1 layer: half-transparent white covers every pixel.
+        image.composite(&[255, 255, 255, 128], 1, 1);
+        assert_eq!(&image.rgba[..4], &[133, 138, 143, 255]);
+        assert_eq!(&image.rgba[12..], &[133, 138, 143, 255]);
+        // Transparent or malformed layers leave the image untouched.
+        let before = image.rgba.clone();
+        image.composite(&[0, 0, 0, 0], 1, 1);
+        image.composite(&[1, 2], 1, 1);
+        assert_eq!(image.rgba, before);
+    }
 
     #[test]
     fn converts_bgra_with_padding_and_forces_opaque_alpha() {

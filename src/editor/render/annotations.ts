@@ -27,6 +27,13 @@ export function drawAnnotation(ctx: CanvasRenderingContext2D, a: Annotation): vo
   ctx.lineWidth = a.width;
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
+  if (a.type !== "arrow" && a.rotation) {
+    const cx = a.x + a.w / 2;
+    const cy = a.y + a.h / 2;
+    ctx.translate(cx, cy);
+    ctx.rotate(a.rotation);
+    ctx.translate(-cx, -cy);
+  }
   switch (a.type) {
     case "arrow": {
       const head = arrowHead(a.from, a.to, a.width);
@@ -57,8 +64,10 @@ export function drawAnnotation(ctx: CanvasRenderingContext2D, a: Annotation): vo
     case "text": {
       ctx.font = font(a.size);
       ctx.textBaseline = "top";
+      ctx.translate(a.x, a.y);
+      ctx.scale(a.scaleX ?? 1, 1);
       a.text.split("\n").forEach((line, i) => {
-        ctx.fillText(line, a.x, a.y + i * a.size * LINE_HEIGHT + a.size * 0.1);
+        ctx.fillText(line, 0, i * a.size * LINE_HEIGHT + a.size * 0.1);
       });
       break;
     }

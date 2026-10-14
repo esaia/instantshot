@@ -6,7 +6,7 @@ use tauri::{AppHandle, Manager, WebviewWindow};
 use tauri_plugin_autostart::ManagerExt;
 use tauri_plugin_dialog::DialogExt;
 
-use crate::controller::{self, CaptureController, FinishAction};
+use crate::controller::{self, CaptureController, FinishAction, Markup};
 use crate::error::AppError;
 use crate::geometry::Rect;
 use crate::ocr::{self, LanguageStatus};
@@ -34,6 +34,19 @@ pub fn overlay_session(app: AppHandle) -> Option<OverlaySession> {
         .map(|(session, mode)| OverlaySession { session, mode })
 }
 
+/// The frozen screen behind this overlay as raw RGBA; an error when it isn't frozen (the
+/// overlay then stays see-through).
+#[tauri::command]
+pub async fn overlay_frame(app: AppHandle, window: WebviewWindow) -> Result<Response, AppError> {
+    if !overlay::is_overlay(window.label()) {
+        return Err(AppError::msg("Not an overlay"));
+    }
+    controller::frozen_image(&app, window.label())
+        .await
+        .map(Response::new)
+        .ok_or_else(|| AppError::msg("The screen isn't frozen"))
+}
+
 #[tauri::command]
 pub fn overlay_ready(app: AppHandle, window: WebviewWindow, session: u64) {
     if overlay::is_overlay(window.label()) {
@@ -48,10 +61,13 @@ pub async fn finish_selection(
     session: u64,
     rect: Rect,
     action: Option<FinishAction>,
+    markup: Option<Markup>,
 ) {
     if overlay::is_overlay(window.label()) {
         let label = window.label().to_string();
-        controller::finish_selection(app, label, session, rect, action.unwrap_or_default()).await;
+        let action = action.unwrap_or_default();
+        let markup = markup.unwrap_or_default();
+        controller::finish_selection(app, label, session, rect, action, markup).await;
     }
 }
 
@@ -205,6 +221,12 @@ pub fn editor_image(app: AppHandle) -> Result<Response, AppError> {
         .ok_or_else(|| AppError::msg("No screenshot to edit"))
 }
 
+/// Annotations drawn in the overlay for the current screenshot.
+#[tauri::command]
+pub fn editor_markup(app: AppHandle) -> Vec<serde_json::Value> {
+    editor::current_markup(&app)
+}
+
 /// The editor page painted the new screenshot: show the window.
 #[tauri::command]
 pub fn editor_ready(app: AppHandle, window: WebviewWindow) {
@@ -213,9 +235,17 @@ pub fn editor_ready(app: AppHandle, window: WebviewWindow) {
     }
 }
 
+/// Copies the export and closes the editor; the HUD confirms the copy.
 #[tauri::command]
-pub async fn copy_image(app: AppHandle, request: Request<'_>) -> Result<(), AppError> {
-    export::copy_image(&app, &request).await
+pub async fn copy_image(
+    app: AppHandle,
+    window: tauri::Window,
+    request: Request<'_>,
+) -> Result<(), AppError> {
+    export::copy_image(&app, &request).await?;
+    editor::close(&app, &window);
+    crate::feedback::show(&app, &crate::workflow::Outcome::ImageCopied);
+    Ok(())
 }
 
 #[tauri::command]

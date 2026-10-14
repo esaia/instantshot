@@ -65,47 +65,57 @@ export function Toolbar({
   return (
     <header
       data-tauri-drag-region
-      className={`relative flex h-[52px] shrink-0 items-center gap-2 border-b border-black/10 bg-neutral-50 pr-3 dark:border-white/10 dark:bg-neutral-900 ${
-        isMac ? "pl-[88px]" : "pl-3"
-      }`}
+      className="flex h-[52px] shrink-0 items-center border-b border-black/10 bg-neutral-50 dark:border-white/10 dark:bg-neutral-900"
     >
-      {/* Left: ink, undo/redo */}
-      <InkPicker color={color} strokeWidth={strokeWidth} scale={scale} dispatch={dispatch} />
-      <div className="flex shrink-0 items-center gap-0.5">
-        <IconButton
-          label={`Undo (${mod}Z)`}
-          disabled={!canUndo}
-          onClick={() => dispatch({ type: "undo" })}
-        >
-          <path d="M7.5 6 4 9.5 7.5 13M4.5 9.5h7a4 4 0 0 1 0 8H9" />
-        </IconButton>
-        <IconButton
-          label={`Redo (${isMac ? "⇧⌘Z" : "Ctrl+Y"})`}
-          disabled={!canRedo}
-          onClick={() => dispatch({ type: "redo" })}
-        >
-          <path d="M12.5 6 16 9.5 12.5 13M15.5 9.5h-7a4 4 0 0 0 0 8H11" />
-        </IconButton>
+      {/* Over the canvas: ink and history, then the tools, centered on the image area. The
+          spacers grow equally; the left one never gets narrower than the traffic lights. */}
+      <div data-tauri-drag-region className="flex h-full min-w-0 flex-1 items-center">
+        <div
+          data-tauri-drag-region
+          className={`h-full flex-1 ${isMac ? "min-w-[84px]" : "min-w-3"}`}
+        />
+        <div className="flex shrink-0 items-center gap-2">
+          <div className="flex shrink-0 items-center gap-1 rounded-xl bg-black/[0.05] p-1 dark:bg-white/[0.07]">
+            <InkPicker color={color} strokeWidth={strokeWidth} scale={scale} dispatch={dispatch} />
+            <div className="mx-0.5 h-5 w-px bg-black/10 dark:bg-white/10" />
+            <IconButton
+              label={`Undo (${mod}Z)`}
+              disabled={!canUndo}
+              onClick={() => dispatch({ type: "undo" })}
+            >
+              <path d="M7.5 6 4 9.5 7.5 13M4.5 9.5h7a4 4 0 0 1 0 8H9" />
+            </IconButton>
+            <IconButton
+              label={`Redo (${isMac ? "⇧⌘Z" : "Ctrl+Y"})`}
+              disabled={!canRedo}
+              onClick={() => dispatch({ type: "redo" })}
+            >
+              <path d="M12.5 6 16 9.5 12.5 13M15.5 9.5h-7a4 4 0 0 0 0 8H11" />
+            </IconButton>
+          </div>
+
+          <div className="flex shrink-0 items-center gap-1 rounded-xl bg-black/[0.05] p-1 dark:bg-white/[0.07]">
+            {TOOLS.map((t) => (
+              <IconButton
+                key={t.id}
+                label={`${t.label} (${t.key})`}
+                active={tool === t.id}
+                onClick={() => dispatch({ type: "tool", tool: t.id })}
+              >
+                {t.icon}
+              </IconButton>
+            ))}
+          </div>
+        </div>
+
+        <div data-tauri-drag-region className="h-full min-w-3 flex-1" />
       </div>
 
-      {/* Center: tools, centered in the whole bar */}
-      <div className="absolute top-1/2 left-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center gap-1 rounded-xl bg-black/[0.05] p-1 dark:bg-white/[0.07]">
-        {TOOLS.map((t) => (
-          <IconButton
-            key={t.id}
-            label={`${t.label} (${t.key})`}
-            active={tool === t.id}
-            onClick={() => dispatch({ type: "tool", tool: t.id })}
-          >
-            {t.icon}
-          </IconButton>
-        ))}
-      </div>
-
-      <div data-tauri-drag-region className="h-full flex-1" />
-
-      {/* Right: export */}
-      <div className="flex shrink-0 items-center gap-2">
+      {/* Over the sidebar (same width): export */}
+      <div
+        data-tauri-drag-region
+        className="flex h-full w-72 shrink-0 items-center justify-end gap-2 pr-3"
+      >
         <button
           type="button"
           title="Drag the image into another app"
@@ -226,6 +236,7 @@ function InkPicker({
     };
   }, [open]);
 
+  const widthNames = ["Thin", "Medium", "Thick"];
   return (
     <div ref={root} className="relative shrink-0">
       <button
@@ -234,23 +245,40 @@ function InkPicker({
         aria-label="Color and line width"
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
-        className="flex h-8 items-center gap-2 rounded-md px-2 hover:bg-black/5 aria-expanded:bg-black/5 dark:hover:bg-white/10 dark:aria-expanded:bg-white/10"
+        className="group flex h-8 items-center gap-2 rounded-lg pr-1.5 pl-1 hover:bg-white aria-expanded:bg-white aria-expanded:shadow-sm dark:hover:bg-white/10 dark:aria-expanded:bg-neutral-700"
       >
+        {/* Color well: the ink color inside a light rim, like a native picker. */}
         <span
-          className="size-[18px] rounded-full ring-1 ring-black/15 dark:ring-white/25"
+          className="size-6 rounded-full border-[2.5px] border-white shadow-[0_0_0_1px_rgba(0,0,0,0.18),0_1px_2px_rgba(0,0,0,0.2)] dark:border-neutral-800 dark:shadow-[0_0_0_1px_rgba(255,255,255,0.22)]"
           style={{ backgroundColor: color }}
         />
-        <span
-          className="w-4 rounded-full bg-neutral-600 dark:bg-neutral-300"
-          style={{ height: Math.max(2, strokeWidth * 0.6) }}
-        />
-        <svg viewBox="0 0 10 10" className="size-2.5 text-neutral-500" aria-hidden="true">
-          <path d="M2 4l3 3 3-3" fill="none" stroke="currentColor" strokeWidth="1.4" />
+        <span className="flex w-5 items-center justify-center">
+          <span
+            className="w-full rounded-full"
+            style={{ height: Math.max(2, strokeWidth * 0.55), backgroundColor: color }}
+          />
+        </span>
+        <svg
+          viewBox="0 0 10 10"
+          className="size-2.5 text-neutral-400 transition-transform group-aria-expanded:rotate-180"
+          aria-hidden="true"
+        >
+          <path
+            d="M2.2 3.8 5 6.6l2.8-2.8"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
         </svg>
       </button>
       {open && (
-        <div className="absolute top-10 left-0 z-30 w-[212px] space-y-3 rounded-xl bg-white p-3 shadow-xl ring-1 ring-black/10 dark:bg-neutral-800 dark:ring-white/10">
-          <div className="grid grid-cols-7 gap-2">
+        <div className="absolute top-11 left-0 z-30 w-[236px] rounded-2xl bg-white/95 p-3 shadow-[0_12px_40px_-8px_rgba(0,0,0,0.35)] ring-1 ring-black/10 backdrop-blur-xl dark:bg-neutral-800/95 dark:ring-white/10">
+          <p className="mb-2 px-0.5 text-[11px] font-semibold text-neutral-500 dark:text-neutral-400">
+            Color
+          </p>
+          <div className="grid grid-cols-7 gap-1.5">
             {INK_COLORS.map((c) => (
               <button
                 key={c}
@@ -259,25 +287,44 @@ function InkPicker({
                 aria-label={c}
                 title={c}
                 onClick={() => dispatch({ type: "color", color: c })}
-                className="aspect-square rounded-full ring-1 ring-black/15 aria-pressed:outline-2 aria-pressed:outline-offset-2 aria-pressed:outline-blue-500 dark:ring-white/25"
+                className="flex aspect-square items-center justify-center rounded-full shadow-[inset_0_0_0_1px_rgba(0,0,0,0.12)] transition-transform hover:scale-110 aria-pressed:shadow-[0_0_0_2px_white,0_0_0_4px_#0a84ff] dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.18)] dark:aria-pressed:shadow-[0_0_0_2px_#262626,0_0_0_4px_#0a84ff]"
                 style={{ backgroundColor: c }}
-              />
+              >
+                {c === color && (
+                  <svg viewBox="0 0 12 12" className="size-3" aria-hidden="true">
+                    <path
+                      d="M2.5 6.2 5 8.6l4.5-5"
+                      fill="none"
+                      stroke={isLight(c) ? "#111" : "#fff"}
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                )}
+              </button>
             ))}
           </div>
-          <div className="grid grid-cols-3 gap-1 rounded-lg bg-neutral-100 p-1 dark:bg-white/5">
+          <p className="mt-3.5 mb-2 px-0.5 text-[11px] font-semibold text-neutral-500 dark:text-neutral-400">
+            Line width
+          </p>
+          <div className="grid grid-cols-3 gap-1 rounded-[10px] bg-black/[0.05] p-1 dark:bg-white/[0.06]">
             {STROKE_WIDTHS.map((w, i) => (
               <button
                 key={w}
                 type="button"
                 aria-pressed={w === strokeWidth}
-                title={["Thin", "Medium", "Thick"][i]}
-                aria-label={["Thin", "Medium", "Thick"][i]}
+                title={widthNames[i]}
+                aria-label={widthNames[i]}
                 onClick={() => dispatch({ type: "strokeWidth", width: w, scale })}
-                className="flex h-7 items-center justify-center rounded-md aria-pressed:bg-white aria-pressed:shadow-sm dark:aria-pressed:bg-neutral-600"
+                className="flex h-8 items-center justify-center rounded-[7px] text-neutral-700 hover:bg-black/[0.04] aria-pressed:bg-white aria-pressed:shadow-sm dark:text-neutral-200 dark:hover:bg-white/5 dark:aria-pressed:bg-neutral-600"
               >
                 <span
-                  className="w-6 rounded-full bg-neutral-700 dark:bg-neutral-200"
-                  style={{ height: w * 0.6 }}
+                  className="w-7 rounded-full"
+                  style={{
+                    height: w * 0.6,
+                    backgroundColor: w === strokeWidth ? color : "currentColor",
+                  }}
                 />
               </button>
             ))}
@@ -286,6 +333,15 @@ function InkPicker({
       )}
     </div>
   );
+}
+
+/** Whether a #rrggbb color is light enough to need a dark check mark. */
+function isLight(hex: string): boolean {
+  const n = Number.parseInt(hex.slice(1), 16);
+  const r = (n >> 16) & 255;
+  const g = (n >> 8) & 255;
+  const b = n & 255;
+  return 0.299 * r + 0.587 * g + 0.114 * b > 170;
 }
 
 function IconButton({
@@ -309,7 +365,7 @@ function IconButton({
       aria-pressed={active}
       disabled={disabled}
       onClick={onClick}
-      className="flex size-8 shrink-0 items-center justify-center rounded-md text-neutral-600 hover:bg-black/5 disabled:opacity-30 disabled:hover:bg-transparent aria-pressed:bg-white aria-pressed:text-blue-600 aria-pressed:shadow-sm dark:text-neutral-300 dark:hover:bg-white/10 dark:aria-pressed:bg-neutral-700 dark:aria-pressed:text-blue-400"
+      className="flex size-8 shrink-0 items-center justify-center rounded-lg text-neutral-600 hover:bg-black/5 disabled:opacity-30 disabled:hover:bg-transparent aria-pressed:bg-white aria-pressed:text-blue-600 aria-pressed:shadow-sm dark:text-neutral-300 dark:hover:bg-white/10 dark:aria-pressed:bg-neutral-700 dark:aria-pressed:text-blue-400"
     >
       <svg
         viewBox="0 0 20 20"

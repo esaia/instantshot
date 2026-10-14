@@ -1,10 +1,110 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
+import { decodeRawFrame } from "../editor/lib/rawFrame";
+import { INK_COLORS, STROKE_WIDTHS } from "../editor/model/editorReducer";
+import type { Annotation } from "../editor/model/types";
+import { drawAnnotation } from "../editor/render/annotations";
 import { api, onEvent } from "../lib/tauri";
-import type { CaptureMode, FinishAction, SelectionRect } from "../lib/types";
+import type { CaptureMode, FinishAction, Markup, SelectionRect } from "../lib/types";
 
 /** Matches `geometry::MIN_SELECTION` in Rust. */
 const MIN_SELECTION = 4;
+/** Shorter drags than this (CSS px) don't leave a shape behind. */
+const MIN_SHAPE = 3;
+
+type DrawTool = "arrow" | "rect" | "ellipse";
+
+const DRAW_TOOLS: { id: DrawTool; label: string; key: string; icon: ReactNode }[] = [
+  { id: "arrow", label: "Arrow", key: "A", icon: <path d="M4.5 15.5 15 5M8.5 5H15v6.5" /> },
+  {
+    id: "rect",
+    label: "Rectangle",
+    key: "R",
+    icon: <rect x="3.5" y="5" width="13" height="10" rx="1.5" />,
+  },
+  {
+    id: "ellipse",
+    label: "Ellipse",
+    key: "O",
+    icon: <ellipse cx="10" cy="10" rx="6.5" ry="5.5" />,
+  },
+];
+const TOOL_KEYS: Record<string, DrawTool> = { a: "arrow", r: "rect", o: "ellipse" };
+
+let nextShape = 0;
+
+/** A shape from a drag, in window-local CSS px (the same space as the selection). */
+function shapeFrom(
+  tool: DrawTool,
+  color: string,
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
+): Annotation {
+  const base = { id: `o${nextShape++}`, color, width: STROKE_WIDTHS[1] };
+  if (tool === "arrow")
+    return { ...base, type: "arrow", from: { x: x0, y: y0 }, to: { x: x1, y: y1 } };
+  const r = rectFrom(x0, y0, x1, y1);
+  return { ...base, type: tool, x: r.x, y: r.y, w: r.width, h: r.height };
+}
+
+/** Moves a shape by (dx, dy). */
+function shifted(a: Annotation, dx: number, dy: number): Annotation {
+  return a.type === "arrow"
+    ? { ...a, from: { x: a.from.x + dx, y: a.from.y + dy }, to: { x: a.to.x + dx, y: a.to.y + dy } }
+    : { ...a, x: a.x + dx, y: a.y + dy };
+}
+
+/** Draws `shapes` clipped to `clip`, with CSS px mapped to `scale` device pixels. */
+function paintShapes(
+  ctx: CanvasRenderingContext2D,
+  shapes: Annotation[],
+  clip: SelectionRect,
+  scale: number,
+  origin = { x: 0, y: 0 },
+) {
+  ctx.setTransform(scale, 0, 0, scale, -origin.x * scale, -origin.y * scale);
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(clip.x, clip.y, clip.width, clip.height);
+  ctx.clip();
+  for (const shape of shapes) drawAnnotation(ctx, shape);
+  ctx.restore();
+}
+
+/** Draws a raw frame into `canvas` at full resolution. Returns whether it worked. */
+function paintFrozen(canvas: HTMLCanvasElement | null, buffer: ArrayBuffer): boolean {
+  const ctx = canvas?.getContext("2d");
+  if (!canvas || !ctx) return false;
+  const frame = decodeRawFrame(buffer);
+  canvas.width = frame.width;
+  canvas.height = frame.height;
+  // Copy: the frame views a larger buffer, which ImageData doesn't accept.
+  ctx.putImageData(new ImageData(new Uint8ClampedArray(frame.pixels), frame.width), 0, 0);
+  return true;
+}
+
+/** Overlay shapes for Rust: editable copies relative to the selection, plus a PNG for Copy. */
+async function markupFor(
+  shapes: Annotation[],
+  selection: SelectionRect,
+  action: FinishAction,
+): Promise<Markup | undefined> {
+  if (shapes.length === 0) return undefined;
+  const annotations = shapes.map((a) => shifted(a, -selection.x, -selection.y));
+  if (action !== "copy") return { annotations };
+  const scale = window.devicePixelRatio || 1;
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(selection.width * scale));
+  canvas.height = Math.max(1, Math.round(selection.height * scale));
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return { annotations };
+  paintShapes(ctx, shapes, selection, scale, selection);
+  const blob = await new Promise<Blob | null>((done) => canvas.toBlob(done, "image/png"));
+  if (!blob) return { annotations };
+  return { annotations, layer: Array.from(new Uint8Array(await blob.arrayBuffer())) };
+}
 /** Grab distance around a resize handle, CSS px. */
 const HANDLE_REACH = 8;
 
@@ -24,6 +124,7 @@ const HANDLE_CURSOR: Record<Handle, string> = {
 
 type Gesture =
   | { kind: "draw"; x0: number; y0: number }
+  | { kind: "shape"; tool: DrawTool; x0: number; y0: number }
   | { kind: "move"; x0: number; y0: number; original: SelectionRect }
   | { kind: "resize"; handle: Handle; original: SelectionRect };
 
@@ -83,7 +184,9 @@ function moved(r: SelectionRect, dx: number, dy: number): SelectionRect {
  * and the border sits outside it, so the pixels being captured are never tinted.
  *
  * Text mode captures as soon as the drag ends. Screenshot mode keeps the selection adjustable
- * (move, resize) until the user picks Copy or Edit.
+ * (move, resize) until the user picks Copy or Edit, and offers quick annotations (arrow,
+ * rectangle, ellipse) drawn over the screen: Copy bakes them into the image, Edit hands them to
+ * the editor as editable shapes.
  */
 export function CaptureOverlay() {
   const [session, setSession] = useState<number | null>(null);
@@ -92,15 +195,29 @@ export function CaptureOverlay() {
   /** Screenshot mode: the drag finished and the selection can be adjusted. */
   const [adjusting, setAdjusting] = useState(false);
   const [hoverCursor, setHoverCursor] = useState("crosshair");
+  const [tool, setTool] = useState<DrawTool | null>(null);
+  const [color, setColor] = useState(INK_COLORS[0]);
+  const [shapes, setShapes] = useState<Annotation[]>([]);
+  const [draft, setDraft] = useState<Annotation | null>(null);
   const sessionRef = useRef<number | null>(null);
   const gesture = useRef<Gesture | null>(null);
+  const canvas = useRef<HTMLCanvasElement>(null);
+  /** The screen as it was when the shortcut was pressed, so video and animations stand still. */
+  const frozenCanvas = useRef<HTMLCanvasElement>(null);
+  const [frozen, setFrozen] = useState(false);
 
   // Pull the active session on load and whenever Rust announces a new one, reset, then ack.
   useEffect(() => {
     const begin = async () => {
       const s = await api.overlaySession();
       if (s === null) return;
+      // Paint the frozen screen before acking, so the overlay is revealed already still.
+      const painted = await api
+        .overlayFrame()
+        .then((buffer) => paintFrozen(frozenCanvas.current, buffer))
+        .catch(() => false);
       flushSync(() => {
+        setFrozen(painted);
         gesture.current = null;
         sessionRef.current = s.session;
         setSession(s.session);
@@ -108,6 +225,9 @@ export function CaptureOverlay() {
         setRect(null);
         setAdjusting(false);
         setHoverCursor("crosshair");
+        setTool(null);
+        setShapes([]);
+        setDraft(null);
       });
       await api.overlayReady(s.session);
     };
@@ -120,14 +240,27 @@ export function CaptureOverlay() {
     };
   }, []);
 
+  const shapesRef = useRef(shapes);
+  shapesRef.current = shapes;
+
   const finish = useCallback((selection: SelectionRect, action?: FinishAction) => {
     const s = sessionRef.current;
+    const drawn = shapesRef.current;
     sessionRef.current = null;
     gesture.current = null;
     setSession(null);
     setRect(null);
     setAdjusting(false);
-    if (s !== null) void api.finishSelection(s, selection, action);
+    setShapes([]);
+    setDraft(null);
+    if (s === null) return;
+    if (!action) {
+      void api.finishSelection(s, selection);
+      return;
+    }
+    void markupFor(drawn, selection, action)
+      .catch(() => undefined)
+      .then((markup) => api.finishSelection(s, selection, action, markup));
   }, []);
 
   const cancel = useCallback(() => {
@@ -153,9 +286,19 @@ export function CaptureOverlay() {
         if (key === "enter" || ((e.metaKey || e.ctrlKey) && key === "c")) {
           e.preventDefault();
           finish(rect, "copy");
-        } else if (key === "e" && !e.metaKey && !e.ctrlKey) {
+        } else if ((e.metaKey || e.ctrlKey) && key === "z") {
           e.preventDefault();
-          finish(rect, "edit");
+          setShapes((list) => list.slice(0, -1));
+        } else if (!e.metaKey && !e.ctrlKey && !e.altKey) {
+          if (key === "e") {
+            e.preventDefault();
+            finish(rect, "edit");
+          } else if (key === "v") {
+            setTool(null);
+          } else if (TOOL_KEYS[key]) {
+            const next = TOOL_KEYS[key];
+            setTool((t) => (t === next ? null : next));
+          }
         }
       }
     };
@@ -169,6 +312,9 @@ export function CaptureOverlay() {
     const handle = adjusting && rect ? handleAt(rect, x, y) : null;
     if (adjusting && rect && handle) {
       gesture.current = { kind: "resize", handle, original: rect };
+    } else if (adjusting && rect && tool) {
+      gesture.current = { kind: "shape", tool, x0: x, y0: y };
+      setDraft(shapeFrom(tool, color, x, y, x, y));
     } else if (adjusting && rect && inside(rect, x, y)) {
       gesture.current = { kind: "move", x0: x, y0: y, original: rect };
     } else {
@@ -190,11 +336,14 @@ export function CaptureOverlay() {
     if (!g) {
       if (adjusting && rect) {
         const handle = handleAt(rect, x, y);
-        setHoverCursor(handle ? HANDLE_CURSOR[handle] : inside(rect, x, y) ? "move" : "crosshair");
+        setHoverCursor(
+          handle ? HANDLE_CURSOR[handle] : !tool && inside(rect, x, y) ? "move" : "crosshair",
+        );
       }
       return;
     }
-    if (g.kind === "draw") setRect(rectFrom(g.x0, g.y0, x, y));
+    if (g.kind === "shape") setDraft(shapeFrom(g.tool, color, g.x0, g.y0, x, y));
+    else if (g.kind === "draw") setRect(rectFrom(g.x0, g.y0, x, y));
     else if (g.kind === "move") setRect(moved(g.original, x - g.x0, y - g.y0));
     else setRect(resized(g.original, g.handle, x, y));
   };
@@ -205,6 +354,14 @@ export function CaptureOverlay() {
     if (!g) return;
     const x = clampX(e.clientX);
     const y = clampY(e.clientY);
+    if (g.kind === "shape") {
+      setDraft(null);
+      if (Math.hypot(x - g.x0, y - g.y0) >= MIN_SHAPE) {
+        const shape = shapeFrom(g.tool, color, g.x0, g.y0, x, y);
+        setShapes((list) => [...list, shape]);
+      }
+      return;
+    }
     const next =
       g.kind === "draw"
         ? rectFrom(g.x0, g.y0, x, y)
@@ -232,6 +389,24 @@ export function CaptureOverlay() {
   const scale = window.devicePixelRatio || 1;
   const cursor = gesture.current?.kind === "move" ? "move" : adjusting ? hoverCursor : "crosshair";
 
+  // Shapes are painted with the editor's renderer, so they look the same after Copy or Edit.
+  useEffect(() => {
+    const el = canvas.current;
+    const ctx = el?.getContext("2d");
+    if (!el || !ctx) return;
+    const w = Math.round(window.innerWidth * scale);
+    const h = Math.round(window.innerHeight * scale);
+    if (el.width !== w || el.height !== h) {
+      el.width = w;
+      el.height = h;
+    }
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+    if (rect && (shapes.length > 0 || draft)) {
+      paintShapes(ctx, draft ? [...shapes, draft] : shapes, rect, scale);
+    }
+  }, [shapes, draft, rect, scale]);
+
   return (
     <div
       role="application"
@@ -247,7 +422,12 @@ export function CaptureOverlay() {
       onPointerUp={onPointerUp}
       onContextMenu={(e) => e.preventDefault()}
     >
-      {session !== null && !rect && <div className="absolute inset-0 bg-black/20" />}
+      <canvas
+        ref={frozenCanvas}
+        className="pointer-events-none absolute inset-0 size-full"
+        style={{ visibility: frozen ? "visible" : "hidden" }}
+      />
+      {session !== null && !rect && <div className="absolute inset-0 bg-black/25" />}
       {session !== null && rect && (
         <>
           <div
@@ -259,9 +439,10 @@ export function CaptureOverlay() {
               height: rect.height,
               // Outer shadows only: white border, dark contrast ring, then the dim.
               boxShadow:
-                "0 0 0 1px rgba(255,255,255,0.95), 0 0 0 2px rgba(0,0,0,0.35), 0 0 0 100vmax rgba(0,0,0,0.28)",
+                "0 0 0 1px rgba(255,255,255,0.95), 0 0 0 2px rgba(0,0,0,0.35), 0 0 0 100vmax rgba(0,0,0,0.35)",
             }}
           />
+          <canvas ref={canvas} className="pointer-events-none absolute inset-0 size-full" />
           <SizeLabel rect={rect} scale={scale} />
           {adjusting && (
             <>
@@ -270,13 +451,19 @@ export function CaptureOverlay() {
                 return (
                   <div
                     key={h}
-                    className="pointer-events-none absolute size-[9px] rounded-full bg-white shadow-[0_0_0_1px_rgba(0,0,0,0.35)]"
+                    className="pointer-events-none absolute size-[9px] rounded-full bg-white shadow-[0_0_0_1px_rgba(0,0,0,0.55),0_1px_3px_rgba(0,0,0,0.3)]"
                     style={{ left: p.x - 4.5, top: p.y - 4.5 }}
                   />
                 );
               })}
               <ActionBar
                 rect={rect}
+                tool={tool}
+                color={color}
+                canUndo={shapes.length > 0}
+                onTool={(t) => setTool((current) => (current === t ? null : t))}
+                onColor={setColor}
+                onUndo={() => setShapes((list) => list.slice(0, -1))}
                 onCopy={() => finish(rect, "copy")}
                 onEdit={() => finish(rect, "edit")}
                 onCancel={cancel}
@@ -305,21 +492,37 @@ function SizeLabel({ rect, scale }: { rect: SelectionRect; scale: number }) {
   );
 }
 
-const BAR_WIDTH = 220;
+const BAR_WIDTH = 404;
 const BAR_HEIGHT = 40;
 
-/** Copy / Edit / Close, below the selection (or above, or inside when there's no room). */
+/**
+ * Drawing tools, Copy / Edit / Close, below the selection (or above, or inside when there's no
+ * room).
+ */
 function ActionBar({
   rect,
+  tool,
+  color,
+  canUndo,
+  onTool,
+  onColor,
+  onUndo,
   onCopy,
   onEdit,
   onCancel,
 }: {
   rect: SelectionRect;
+  tool: DrawTool | null;
+  color: string;
+  canUndo: boolean;
+  onTool: (tool: DrawTool) => void;
+  onColor: (color: string) => void;
+  onUndo: () => void;
   onCopy: () => void;
   onEdit: () => void;
   onCancel: () => void;
 }) {
+  const [palette, setPalette] = useState(false);
   const gap = 10;
   const below = rect.y + rect.height + gap + BAR_HEIGHT <= window.innerHeight - 8;
   const above = rect.y - gap - BAR_HEIGHT >= 8;
@@ -341,6 +544,93 @@ function ActionBar({
       onPointerUp={stop}
       onPointerMove={stop}
     >
+      {DRAW_TOOLS.map((t) => (
+        <button
+          key={t.id}
+          type="button"
+          title={`${t.label} (${t.key})`}
+          aria-label={t.label}
+          aria-pressed={tool === t.id}
+          onClick={() => onTool(t.id)}
+          className={`flex size-8 shrink-0 items-center justify-center rounded-lg ${
+            tool === t.id ? "bg-white/20 text-sky-300" : "text-white/85 hover:bg-white/10"
+          }`}
+        >
+          <svg
+            viewBox="0 0 20 20"
+            className="size-[18px]"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.7"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            {t.icon}
+          </svg>
+        </button>
+      ))}
+      <div className="relative">
+        <button
+          type="button"
+          title="Color"
+          aria-label="Color"
+          aria-expanded={palette}
+          onClick={() => setPalette((open) => !open)}
+          className="flex size-8 shrink-0 items-center justify-center rounded-lg hover:bg-white/10"
+        >
+          <span
+            className="size-4 rounded-full ring-2 ring-white/70"
+            style={{ backgroundColor: color }}
+          />
+        </button>
+        {palette && (
+          <div
+            className={`absolute left-1/2 flex -translate-x-1/2 gap-1.5 rounded-xl bg-neutral-900/95 p-2 shadow-2xl ring-1 ring-white/10 backdrop-blur-md ${
+              top > rect.y && top + BAR_HEIGHT + 48 <= window.innerHeight ? "top-10" : "bottom-10"
+            }`}
+          >
+            {INK_COLORS.map((c) => (
+              <button
+                key={c}
+                type="button"
+                aria-label={`Color ${c}`}
+                aria-pressed={c === color}
+                onClick={() => {
+                  onColor(c);
+                  setPalette(false);
+                }}
+                className={`size-5 rounded-full ring-offset-2 ring-offset-neutral-900 ${
+                  c === color ? "ring-2 ring-white" : "ring-1 ring-white/25 hover:ring-white/60"
+                }`}
+                style={{ backgroundColor: c }}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+      <button
+        type="button"
+        title="Undo (⌘Z)"
+        aria-label="Undo"
+        disabled={!canUndo}
+        onClick={onUndo}
+        className="flex size-8 shrink-0 items-center justify-center rounded-lg text-white/85 hover:bg-white/10 disabled:opacity-35 disabled:hover:bg-transparent"
+      >
+        <svg
+          viewBox="0 0 20 20"
+          className="size-4"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.7"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M7.5 5 4 8.5 7.5 12M4.5 8.5h7a4 4 0 0 1 0 8H9" />
+        </svg>
+      </button>
+      <div className="mx-0.5 h-5 w-px shrink-0 bg-white/15" />
       <button
         type="button"
         title="Copy (Return)"

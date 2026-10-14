@@ -48,14 +48,24 @@ interface Base {
   width: number;
 }
 
+interface Rotatable {
+  /** Clockwise rotation around the box center, radians (0 when absent). */
+  rotation?: number;
+}
+
 export type ArrowAnnotation = Base & { type: "arrow"; from: Point; to: Point };
-export type BoxAnnotation = Base & Box & { type: "rect" | "ellipse" | "blur" | "pixelate" };
+export type BoxAnnotation = Base &
+  Box &
+  Rotatable & { type: "rect" | "ellipse" | "blur" | "pixelate" };
 export type TextAnnotation = Base &
-  Box & {
+  Box &
+  Rotatable & {
     type: "text";
     text: string;
     /** Font size in source pixels. `w`/`h` are the measured bounds. */
     size: number;
+    /** Horizontal stretch of the glyphs (1 = natural width). */
+    scaleX?: number;
   };
 export type Annotation = ArrowAnnotation | BoxAnnotation | TextAnnotation;
 export type AnnotationType = Annotation["type"];

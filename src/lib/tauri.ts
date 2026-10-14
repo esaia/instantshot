@@ -9,6 +9,7 @@ import type {
   AppInfo,
   FinishAction,
   LanguageStatus,
+  Markup,
   OverlaySession,
   PermissionState,
   SelectionRect,
@@ -22,8 +23,15 @@ const tauriApi = {
   // Overlay
   overlaySession: () => invoke<OverlaySession | null>("overlay_session"),
   overlayReady: (session: number) => invoke<void>("overlay_ready", { session }),
-  finishSelection: (session: number, rect: SelectionRect, action?: FinishAction) =>
-    invoke<void>("finish_selection", { session, rect, action: action ?? null }),
+  /** The frozen screen behind this overlay (raw RGBA); rejects when it isn't frozen. */
+  overlayFrame: () => invoke<ArrayBuffer>("overlay_frame"),
+  finishSelection: (session: number, rect: SelectionRect, action?: FinishAction, markup?: Markup) =>
+    invoke<void>("finish_selection", {
+      session,
+      rect,
+      action: action ?? null,
+      markup: markup ?? null,
+    }),
   cancelCapture: (session: number) => invoke<void>("cancel_capture", { session }),
 
   // Settings
@@ -48,6 +56,7 @@ const tauriApi = {
 
   // Screenshot editor. Images travel as raw bytes, never JSON.
   editorImage: () => invoke<ArrayBuffer>("editor_image"),
+  editorMarkup: () => invoke<unknown[]>("editor_markup"),
   editorReady: () => invoke<void>("editor_ready"),
   copyImage: (png: Uint8Array) => invoke<void>("copy_image", png),
   /** Resolves to the saved path, or null if the dialog was cancelled. */

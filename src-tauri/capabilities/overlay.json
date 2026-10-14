@@ -9,6 +9,7 @@
     "core:event:default",
     "allow-overlay-session",
     "allow-overlay-ready",
+    "allow-overlay-frame",
     "allow-finish-selection",
     "allow-cancel-capture"
   ]

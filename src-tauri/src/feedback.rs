@@ -13,9 +13,13 @@ use crate::{display, overlay, settings};
 
 pub const TOAST_LABEL: &str = "toast";
 const EVENT_SHOW: &str = "toast:show";
-const WIDTH: f64 = 280.0;
-const HEIGHT: f64 = 44.0;
-const BOTTOM_MARGIN: f64 = 120.0;
+const EVENT_HIDE: &str = "toast:hide";
+/// Room around the pill so its shadow isn't clipped by the window edge.
+const WIDTH: f64 = 340.0;
+const HEIGHT: f64 = 76.0;
+const BOTTOM_MARGIN: f64 = 104.0;
+/// Matches the page's exit animation.
+const FADE_OUT: Duration = Duration::from_millis(180);
 const SUCCESS_DURATION: Duration = Duration::from_millis(1400);
 const ERROR_DURATION: Duration = Duration::from_millis(2600);
 
@@ -82,6 +86,11 @@ pub fn show(app: &AppHandle, outcome: &Outcome) {
             ERROR_DURATION
         })
         .await;
+        if GENERATION.load(Ordering::SeqCst) != generation {
+            return;
+        }
+        let _ = window.emit_to(TOAST_LABEL, EVENT_HIDE, ());
+        tokio::time::sleep(FADE_OUT).await;
         if GENERATION.load(Ordering::SeqCst) == generation {
             let _ = window.hide();
         }

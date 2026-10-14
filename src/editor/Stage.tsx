@@ -8,13 +8,30 @@ import type { Annotation, Point, Tool } from "./model/types";
 import { CHECKERBOARD } from "./panels/controls";
 import { measureText } from "./render/annotations";
 import { context2d } from "./render/canvas";
-import { layoutFor, type RenderAssets, renderComposition } from "./render/compose";
-import { boxFrom } from "./render/geometry";
+import {
+  layoutFor,
+  type RenderAssets,
+  ROTATE_HANDLE_GAP,
+  renderComposition,
+} from "./render/compose";
+import { boxFrom, constrainRatio, snapAngle } from "./render/geometry";
 
 /** Space around the composition inside the stage, CSS px. */
 const MARGIN = 32;
+/** Selection handle size, CSS px. */
+const HANDLE_SIZE = 8;
 /** Pointer tolerance, CSS px. */
 const TOLERANCE = 6;
+
+const HANDLE_CURSOR: Record<HandleId, string> = {
+  nw: "nwse-resize",
+  se: "nwse-resize",
+  ne: "nesw-resize",
+  sw: "nesw-resize",
+  from: "grab",
+  to: "grab",
+  rotate: "grab",
+};
 
 type Gesture =
   | { kind: "draw"; start: Point }
@@ -44,10 +61,13 @@ export function Stage({
   const [area, setArea] = useState({ w: 0, h: 0 });
   const [draft, setDraft] = useState<Annotation | null>(null);
   const [text, setText] = useState<TextDraft | null>(null);
-  const [hover, setHover] = useState(false);
+  /** Cursor over the annotation or handle under the pointer, if any. */
+  const [hover, setHover] = useState<string | null>(null);
+  /** Cursor while a gesture runs (it may leave the shape it started on). */
+  const [active, setActive] = useState<string | null>(null);
   const gesture = useRef<Gesture | null>(null);
   /** Where the text being edited sits, source px. */
-  const textAnchor = useRef<{ x: number; y: number; size: number } | null>(null);
+  const textAnchor = useRef<{ x: number; y: number; size: number; scaleX: number } | null>(null);
 
   useEffect(() => {
     const el = container.current;
@@ -83,13 +103,17 @@ export function Stage({
         draft,
         hiddenId: text?.id ?? null,
         selectedId: text ? null : state.selectedId,
-        handleSize: 8 * dpr,
+        handleSize: HANDLE_SIZE * dpr,
       });
     });
     return () => cancelAnimationFrame(frame);
   }, [doc, assets, draft, text, state.selectedId, cssW, cssH, layout, area.w]);
 
   const tol = TOLERANCE * sourcePerViewPx(mapping);
+  /** Rotate handle distance above a box, source px (matches the rendered handle). */
+  const rotateOffset = HANDLE_SIZE * ROTATE_HANDLE_GAP * sourcePerViewPx(mapping);
+  const grabHandle = (a: Annotation | null, p: Point) =>
+    a ? handleAt(a, p, tol * 1.5, a.type === "arrow" ? 0 : rotateOffset) : null;
   const strokeWidth = state.strokeWidth * source.scale;
 
   const openText = (at: Point, existing: Annotation | null) => {
@@ -102,11 +126,14 @@ export function Stage({
       text: existing?.type === "text" ? existing.text : "",
       color: existing?.color ?? state.color,
       fontSize: size / sourcePerViewPx(mapping),
+      scaleX: existing?.type === "text" ? (existing.scaleX ?? 1) : 1,
       x: pos.x,
       y: pos.y,
     });
     textAnchor.current =
-      existing?.type === "text" ? { x: existing.x, y: existing.y, size } : { ...at, size };
+      existing?.type === "text"
+        ? { x: existing.x, y: existing.y, size, scaleX: existing.scaleX ?? 1 }
+        : { ...at, size, scaleX: 1 };
   };
 
   // A double-click in the parent (or the text tool) asks to edit an existing text.
@@ -134,9 +161,10 @@ export function Stage({
       type: "text",
       text: trimmed,
       size: anchor.size,
+      scaleX: anchor.scaleX,
       x: anchor.x,
       y: anchor.y,
-      w,
+      w: w * anchor.scaleX,
       h,
       color: draftText.color,
       width: strokeWidth,
@@ -146,16 +174,23 @@ export function Stage({
     dispatch({ type: "select", id: annotation.id });
   };
 
-  const create = (tool: Tool, a: Point, b: Point, id: string): Annotation | null => {
+  /** A new shape dragged from `a` to `b`; Shift makes squares/circles and 45° arrows. */
+  const create = (
+    tool: Tool,
+    a: Point,
+    b: Point,
+    id: string,
+    constrain: boolean,
+  ): Annotation | null => {
     const base = { id, color: state.color, width: strokeWidth };
     switch (tool) {
       case "arrow":
-        return { ...base, type: "arrow", from: a, to: b };
+        return { ...base, type: "arrow", from: a, to: constrain ? snapAngle(a, b) : b };
       case "rect":
       case "ellipse":
       case "blur":
       case "pixelate":
-        return { ...base, type: tool, ...boxFrom(a, b) };
+        return { ...base, type: tool, ...boxFrom(a, constrain ? constrainRatio(a, b, 1) : b) };
       default:
         return null;
     }
@@ -178,9 +213,10 @@ export function Stage({
       return;
     }
     if (state.tool === "select") {
-      const handle = selected ? handleAt(selected, p, tol * 1.5) : null;
+      const handle = grabHandle(selected, p);
       if (selected && handle) {
         gesture.current = { kind: "resize", handle: handle.id, original: selected };
+        setActive(HANDLE_CURSOR[handle.id] === "grab" ? "grabbing" : HANDLE_CURSOR[handle.id]);
       } else if (hit) {
         dispatch({ type: "select", id: hit.id });
         if (e.detail === 2 && hit.type === "text") {
@@ -188,13 +224,14 @@ export function Stage({
           return;
         }
         gesture.current = { kind: "move", start: p, original: hit };
+        setActive("move");
       } else {
         dispatch({ type: "select", id: null });
         return;
       }
     } else {
       gesture.current = { kind: "draw", start: p };
-      setDraft(create(state.tool, p, p, newId()));
+      setDraft(create(state.tool, p, p, newId(), e.shiftKey));
     }
     e.currentTarget.setPointerCapture(e.pointerId);
   };
@@ -203,17 +240,25 @@ export function Stage({
     const p = pointFrom(e);
     const g = gesture.current;
     if (!g) {
-      if (state.tool === "select") setHover(hitTest(doc.annotations, p, tol) !== null);
+      if (state.tool !== "select") return;
+      const handle = grabHandle(selected, p);
+      setHover(
+        handle
+          ? HANDLE_CURSOR[handle.id]
+          : hitTest(doc.annotations, p, tol) !== null
+            ? "move"
+            : null,
+      );
       return;
     }
     if (g.kind === "text") return;
     if (g.kind === "draw") {
-      setDraft((d) => (d ? create(state.tool, g.start, p, d.id) : d));
+      setDraft((d) => (d ? create(state.tool, g.start, p, d.id, e.shiftKey) : d));
     } else if (g.kind === "move") {
       const moved = translate(g.original, p.x - g.start.x, p.y - g.start.y);
       dispatch({ type: "update", annotation: moved, key: `move:${moved.id}` });
     } else {
-      const resized = resize(g.original, g.handle, p);
+      const resized = resize(g.original, g.handle, p, e.shiftKey);
       dispatch({ type: "update", annotation: resized, key: `resize:${resized.id}` });
     }
   };
@@ -221,11 +266,12 @@ export function Stage({
   const onPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
     const g = gesture.current;
     gesture.current = null;
+    setActive(null);
     if (g?.kind === "text") {
       openText(g.at, g.existing);
     } else if (g?.kind === "draw") {
       // Built from the release point: the rendered draft may lag behind fast drags.
-      const d = create(state.tool, g.start, pointFrom(e), draft?.id ?? newId());
+      const d = create(state.tool, g.start, pointFrom(e), draft?.id ?? newId(), e.shiftKey);
       setDraft(null);
       if (!d) return;
       const big =
@@ -239,13 +285,8 @@ export function Stage({
   };
 
   const cursor =
-    state.tool === "select"
-      ? hover
-        ? "move"
-        : "default"
-      : state.tool === "text"
-        ? "text"
-        : "crosshair";
+    active ??
+    (state.tool === "select" ? (hover ?? "default") : state.tool === "text" ? "text" : "crosshair");
 
   return (
     // Pointer handling covers the whole stage so shapes can start next to the image.
@@ -257,7 +298,7 @@ export function Stage({
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
-      onPointerLeave={() => setHover(false)}
+      onPointerLeave={() => setHover(null)}
     >
       <div className="relative" style={{ width: cssW, height: cssH }}>
         {doc.style.background.kind === "none" && (

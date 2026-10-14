@@ -1,4 +1,5 @@
 import type { Annotation, Point } from "../model/types";
+import { boxCenter, rotatePoint } from "../render/geometry";
 import { type Handle, handlesFor } from "./handles";
 
 /** Distance from `p` to the segment `a`–`b`. */
@@ -10,8 +11,11 @@ export function segmentDistance(p: Point, a: Point, b: Point): number {
   return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
 }
 
-function hits(a: Annotation, p: Point, tol: number): boolean {
+function hits(a: Annotation, world: Point, tol: number): boolean {
   const reach = tol + a.width / 2;
+  // Boxes are tested in their own unrotated frame.
+  const p =
+    a.type === "arrow" || !a.rotation ? world : rotatePoint(world, boxCenter(a), -a.rotation);
   switch (a.type) {
     case "arrow":
       return segmentDistance(p, a.from, a.to) <= reach;
@@ -48,6 +52,7 @@ export function hitTest(annotations: Annotation[], p: Point, tol: number): Annot
   return null;
 }
 
-export function handleAt(a: Annotation, p: Point, tol: number): Handle | null {
-  return handlesFor(a).find((h) => Math.hypot(h.x - p.x, h.y - p.y) <= tol) ?? null;
+/** Handle of `a` within `tol` of `p`; `rotateOffset` as in [`handlesFor`]. */
+export function handleAt(a: Annotation, p: Point, tol: number, rotateOffset = 0): Handle | null {
+  return handlesFor(a, rotateOffset).find((h) => Math.hypot(h.x - p.x, h.y - p.y) <= tol) ?? null;
 }

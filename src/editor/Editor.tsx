@@ -5,6 +5,7 @@ import { screenshotFileName } from "./lib/fileName";
 import { decodeRawFrame, dragPayload, toCanvas } from "./lib/rawFrame";
 import { DEFAULT_STYLE, parseStyle } from "./model/defaults";
 import { editorReducer, initialEditorState } from "./model/editorReducer";
+import { markupToAnnotations } from "./model/markup";
 import type { Background, Doc, EditorStyle, SourceImage } from "./model/types";
 import { Sidebar } from "./panels/Sidebar";
 import type { RenderAssets } from "./render/compose";
@@ -84,12 +85,20 @@ export function Editor() {
   /** Fetches the screenshot. `requested` is false for the preload, when there may be none. */
   const loadImage = useCallback(async (requested: boolean) => {
     try {
-      const image = analyze(await api.editorImage());
+      const [buffer, markup] = await Promise.all([
+        api.editorImage(),
+        api.editorMarkup().catch(() => []),
+      ]);
+      const image = analyze(buffer);
       fileName.current = screenshotFileName(new Date());
       setSource(image);
       setError(null);
-      // Each screenshot starts with no annotations but keeps the current style.
-      dispatch({ type: "load", style: docRef.current.style });
+      // Each screenshot keeps the current style and starts with what was drawn in the overlay.
+      dispatch({
+        type: "load",
+        style: docRef.current.style,
+        annotations: markupToAnnotations(markup, image.scale),
+      });
     } catch (err) {
       if (!requested) return;
       setError(errorMessage(err));
@@ -227,8 +236,9 @@ export function Editor() {
 
   const copy = () =>
     run(async (png) => {
+      // The editor closes after copying and the HUD confirms it.
       await api.copyImage(png);
-      return { message: "Copied to clipboard" };
+      return null;
     });
   const save = () =>
     run(async (png) => {

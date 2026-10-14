@@ -3,7 +3,7 @@
 
 use crate::display::Display;
 use crate::error::CaptureError;
-use crate::geometry::Rect;
+use crate::geometry::{PixelRect, Rect};
 
 #[cfg(target_os = "macos")]
 mod macos;
@@ -21,6 +21,37 @@ pub struct Frame {
 impl std::fmt::Debug for Frame {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "Frame({}x{})", self.width, self.height)
+    }
+}
+
+impl Frame {
+    /// Copies the `px` region (clamped to the frame) into a new, tightly packed frame.
+    /// `None` if nothing of it lies inside.
+    pub fn crop(&self, px: PixelRect) -> Option<Frame> {
+        let x0 = (px.x.max(0) as u32).min(self.width);
+        let y0 = (px.y.max(0) as u32).min(self.height);
+        let x1 = (px.x.max(0) as u32)
+            .saturating_add(px.width)
+            .min(self.width);
+        let y1 = (px.y.max(0) as u32)
+            .saturating_add(px.height)
+            .min(self.height);
+        if x1 <= x0 || y1 <= y0 {
+            return None;
+        }
+        let (w, h) = (x1 - x0, y1 - y0);
+        let row = w as usize * 4;
+        let mut pixels = Vec::with_capacity(row * h as usize);
+        for y in y0..y1 {
+            let start = y as usize * self.stride + x0 as usize * 4;
+            pixels.extend_from_slice(&self.pixels[start..start + row]);
+        }
+        Some(Frame {
+            width: w,
+            height: h,
+            stride: row,
+            pixels,
+        })
     }
 }
 
@@ -49,5 +80,47 @@ pub fn capture_region(display: &Display, rect: Rect) -> Result<Frame, CaptureErr
     {
         let _ = rect;
         Err(CaptureError::Platform("unsupported platform".into()))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn crops_a_padded_frame_and_clamps_to_its_edges() {
+        // 3×2 frame, stride 16 (4 bytes of padding per row); pixel value = 10*y + x.
+        let mut pixels = vec![0u8; 32];
+        for y in 0..2 {
+            for x in 0..3 {
+                pixels[y * 16 + x * 4] = (10 * y + x) as u8;
+            }
+        }
+        let frame = Frame {
+            width: 3,
+            height: 2,
+            stride: 16,
+            pixels,
+        };
+        let crop = frame
+            .crop(PixelRect {
+                x: 1,
+                y: 1,
+                width: 5,
+                height: 5,
+            })
+            .expect("inside");
+        assert_eq!((crop.width, crop.height, crop.stride), (2, 1, 8));
+        assert_eq!((crop.pixels[0], crop.pixels[4]), (11, 12));
+        assert!(
+            frame
+                .crop(PixelRect {
+                    x: 3,
+                    y: 0,
+                    width: 2,
+                    height: 2,
+                })
+                .is_none()
+        );
     }
 }

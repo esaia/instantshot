@@ -23,7 +23,7 @@ export interface EditorState {
 }
 
 export type EditorAction =
-  | { type: "load"; style: EditorStyle }
+  | { type: "load"; style: EditorStyle; annotations?: Annotation[] }
   | { type: "style"; patch: Partial<EditorStyle>; key?: string }
   | { type: "resetSection"; section: Section }
   | { type: "add"; annotation: Annotation }
@@ -37,9 +37,12 @@ export type EditorAction =
   | { type: "color"; color: string }
   | { type: "strokeWidth"; width: number; scale: number };
 
-export function initialEditorState(style: EditorStyle): EditorState {
+export function initialEditorState(
+  style: EditorStyle,
+  annotations: Annotation[] = [],
+): EditorState {
   return {
-    history: createHistory({ style, annotations: [] }),
+    history: createHistory({ style, annotations }),
     tool: "select",
     selectedId: null,
     color: INK_COLORS[0],
@@ -66,7 +69,7 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
   switch (action.type) {
     case "load":
       return {
-        ...initialEditorState(action.style),
+        ...initialEditorState(action.style, action.annotations),
         color: state.color,
         strokeWidth: state.strokeWidth,
       };

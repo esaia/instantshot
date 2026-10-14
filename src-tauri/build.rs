@@ -5,6 +5,7 @@ const COMMANDS: &[&str] = &[
     // Overlay windows
     "overlay_session",
     "overlay_ready",
+    "overlay_frame",
     "finish_selection",
     "cancel_capture",
     // Settings window
@@ -25,6 +26,7 @@ const COMMANDS: &[&str] = &[
     "restart_app",
     // Screenshot editor window
     "editor_image",
+    "editor_markup",
     "editor_ready",
     "copy_image",
     "save_image",

@@ -75,3 +75,22 @@ describe("coords", () => {
     expect(viewToSource(m, { x: 50, y: 25 })).toEqual({ x: 20, y: 10 });
   });
 });
+
+describe("rotated hit testing", () => {
+  it("hits a rotated blur inside its turned shape only", () => {
+    const blur: Annotation = {
+      id: "z",
+      type: "blur",
+      x: 0,
+      y: 40,
+      w: 100,
+      h: 20,
+      rotation: Math.PI / 2,
+      color: "#000",
+      width: 1,
+    };
+    // Turned upright: now spans x 40–60, y 0–100.
+    expect(hitTest([blur], { x: 50, y: 5 }, 1)).toBe(blur);
+    expect(hitTest([blur], { x: 5, y: 50 }, 1)).toBeNull();
+  });
+});

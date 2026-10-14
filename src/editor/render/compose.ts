@@ -8,7 +8,15 @@ import { drawAnnotation } from "./annotations";
 import { boxBlur3 } from "./blur";
 import { context2d, makeCanvas } from "./canvas";
 import { CHROME_COLORS, drawChrome } from "./chrome";
-import { coverFit, gradientLine, intersect } from "./geometry";
+import {
+  boxCenter,
+  coverFit,
+  gradientLine,
+  intersect,
+  rotatedBounds,
+  rotatedCorners,
+  rotatePoint,
+} from "./geometry";
 import { computeLayout, type Layout } from "./layout";
 import { drawRedacted } from "./redact";
 
@@ -188,8 +196,24 @@ export function renderComposition(
   ctx.clip();
   for (const a of annotations) {
     if (a.type !== "blur" && a.type !== "pixelate") continue;
-    const region = intersect(a, crop);
-    if (region) drawRedacted(ctx, source.bitmap, region, region, a.type, source.scale);
+    const angle = a.rotation ?? 0;
+    const region = intersect(rotatedBounds(a, angle), crop);
+    if (!region) continue;
+    if (!angle) {
+      drawRedacted(ctx, source.bitmap, region, region, a.type, source.scale);
+      continue;
+    }
+    // Rotated: obscure the covering upright area, clipped to the rotated shape.
+    ctx.save();
+    ctx.beginPath();
+    for (const [i, p] of rotatedCorners(a, angle).entries()) {
+      if (i === 0) ctx.moveTo(p.x, p.y);
+      else ctx.lineTo(p.x, p.y);
+    }
+    ctx.closePath();
+    ctx.clip();
+    drawRedacted(ctx, source.bitmap, region, region, a.type, source.scale);
+    ctx.restore();
   }
   ctx.restore();
 
@@ -208,40 +232,84 @@ export function renderComposition(
         y: s * ((y - crop.y) * k + image.y),
       }),
       opts.handleSize ?? 8,
+      1 / (s * k),
     );
   }
 }
 
-/** Dashed outline and square handles, drawn in output pixels so they don't scale. */
+/** Distance of the rotate handle above a selected box, in handle sizes. */
+export const ROTATE_HANDLE_GAP = 3;
+
+/**
+ * Dashed outline and handles, drawn in output pixels so they don't scale. `srcPerOut` converts
+ * output px back to source px (for the outline margin and the rotate handle's distance).
+ */
 function drawSelection(
   ctx: CanvasRenderingContext2D,
   a: Annotation,
   toOut: (x: number, y: number) => { x: number; y: number },
   size: number,
+  srcPerOut: number,
 ): void {
   ctx.save();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
+  const rotateOffset = a.type === "arrow" ? 0 : size * ROTATE_HANDLE_GAP * srcPerOut;
+  const handles = handlesFor(a, rotateOffset);
   if (a.type !== "arrow") {
-    const p0 = toOut(a.x, a.y);
-    const p1 = toOut(a.x + a.w, a.y + a.h);
+    const pad = (size / 2) * srcPerOut;
+    const outline = rotatedCorners(
+      { x: a.x - pad, y: a.y - pad, w: a.w + 2 * pad, h: a.h + 2 * pad },
+      a.rotation ?? 0,
+    ).map((p) => toOut(p.x, p.y));
+    const path = () => {
+      ctx.beginPath();
+      for (const [i, p] of outline.entries()) {
+        if (i === 0) ctx.moveTo(p.x, p.y);
+        else ctx.lineTo(p.x, p.y);
+      }
+      ctx.closePath();
+    };
     ctx.setLineDash([size * 0.6, size * 0.5]);
     ctx.lineWidth = size / 8;
     ctx.strokeStyle = "rgba(255,255,255,0.95)";
-    ctx.strokeRect(p0.x - size / 2, p0.y - size / 2, p1.x - p0.x + size, p1.y - p0.y + size);
+    path();
+    ctx.stroke();
     ctx.lineDashOffset = size * 0.55;
     ctx.strokeStyle = "rgba(10,132,255,0.95)";
-    ctx.strokeRect(p0.x - size / 2, p0.y - size / 2, p1.x - p0.x + size, p1.y - p0.y + size);
+    path();
+    ctx.stroke();
     ctx.setLineDash([]);
+
+    // Stem from the top edge to the rotate handle.
+    const rot = handles.find((h) => h.id === "rotate");
+    if (rot) {
+      const top = toOut(...topMid(a));
+      const r = toOut(rot.x, rot.y);
+      ctx.strokeStyle = "rgba(10,132,255,0.95)";
+      ctx.lineWidth = size / 6;
+      ctx.beginPath();
+      ctx.moveTo(top.x, top.y);
+      ctx.lineTo(r.x, r.y);
+      ctx.stroke();
+    }
   }
-  for (const h of handlesFor(a)) {
+  for (const h of handles) {
     const p = toOut(h.x, h.y);
     ctx.fillStyle = "#ffffff";
     ctx.strokeStyle = "#0a84ff";
     ctx.lineWidth = size / 5;
     ctx.beginPath();
-    ctx.roundRect(p.x - size / 2, p.y - size / 2, size, size, size / 4);
+    if (h.id === "rotate") ctx.arc(p.x, p.y, size * 0.6, 0, Math.PI * 2);
+    else ctx.roundRect(p.x - size / 2, p.y - size / 2, size, size, size / 4);
     ctx.fill();
     ctx.stroke();
   }
   ctx.restore();
+}
+
+/** Middle of a box's (rotated) top edge. */
+function topMid(a: Annotation): [number, number] {
+  if (a.type === "arrow") return [a.to.x, a.to.y];
+  const p = rotatePoint({ x: a.x + a.w / 2, y: a.y }, boxCenter(a), a.rotation ?? 0);
+  return [p.x, p.y];
 }

@@ -87,6 +87,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::overlay_session,
             commands::overlay_ready,
+            commands::overlay_frame,
             commands::finish_selection,
             commands::cancel_capture,
             commands::app_info,
@@ -105,6 +106,7 @@ pub fn run() {
             commands::open_permission_settings,
             commands::restart_app,
             commands::editor_image,
+            commands::editor_markup,
             commands::editor_ready,
             commands::copy_image,
             commands::save_image,

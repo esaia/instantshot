@@ -6,6 +6,7 @@ import type {
   AppInfo,
   FinishAction,
   LanguageStatus,
+  Markup,
   OverlaySession,
   PermissionState,
   SelectionRect,
@@ -55,8 +56,14 @@ export const previewApi = {
         new URLSearchParams(window.location.search).get("mode") === "text" ? "text" : "screenshot",
     }),
   overlayReady: (_session: number) => resolve<void>(undefined),
-  finishSelection: (_session: number, rect: SelectionRect, action?: FinishAction) => {
-    console.info("[preview] selection", rect, action);
+  overlayFrame: () => Promise.reject<ArrayBuffer>(new Error("not frozen in preview")),
+  finishSelection: (
+    _session: number,
+    rect: SelectionRect,
+    action?: FinishAction,
+    markup?: Markup,
+  ) => {
+    console.info("[preview] selection", rect, action, markup?.annotations);
     return resolve<void>(undefined);
   },
   cancelCapture: (_session: number) => {
@@ -123,6 +130,7 @@ export const previewApi = {
   restartApp: () => resolve<void>(undefined),
 
   editorImage: () => resolve(encodeRawFrame(sampleScreenshot())),
+  editorMarkup: () => resolve<unknown[]>([]),
   editorReady: () => resolve<void>(undefined),
   copyImage: async (png: Uint8Array) => {
     const blob = new Blob([png as BlobPart], { type: "image/png" });

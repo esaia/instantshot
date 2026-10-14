@@ -8,15 +8,16 @@
 //!   behind.
 //! - Overlays that fail to report ready within [`READY_TIMEOUT`] abort the session.
 
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use tauri::{AppHandle, Emitter, Manager, WebviewWindow};
 use tauri_plugin_clipboard_manager::ClipboardExt;
 
+use crate::capture::Frame;
 use crate::display::{self, Display};
 use crate::error::CaptureError;
-use crate::geometry::Rect;
+use crate::geometry::{Rect, to_physical};
 use crate::workflow::{CaptureMode, HotkeyAction, Outcome, Phase, Workflow};
 use crate::{capture, editor, feedback, ocr, overlay, permissions, settings};
 
@@ -37,6 +38,19 @@ pub enum FinishAction {
     Copy,
 }
 
+/// Annotations drawn on the selection in the overlay before Copy or Edit.
+#[derive(Debug, Default, serde::Deserialize)]
+pub struct Markup {
+    /// Editable shapes for the editor (logical px relative to the selection).
+    #[serde(default)]
+    pub annotations: Vec<serde_json::Value>,
+    /// The same shapes rendered as a PNG the size of the capture, for Copy.
+    pub layer: Option<Vec<u8>>,
+}
+
+/// Upper bound on overlay annotations accepted from the page.
+const MAX_ANNOTATIONS: usize = 500;
+
 #[derive(Default)]
 pub struct CaptureController {
     state: Mutex<State>,
@@ -47,6 +61,18 @@ struct State {
     workflow: Workflow,
     displays: Vec<Display>,
     revealed: usize,
+    /// Each display as it looked when the shortcut was pressed (by display id). The overlay
+    /// shows it, so the screen appears frozen, and selections are cut from it.
+    frozen: Vec<(String, Arc<Frame>)>,
+}
+
+impl State {
+    fn frozen_for(&self, display: &Display) -> Option<Arc<Frame>> {
+        self.frozen
+            .iter()
+            .find(|(id, _)| *id == display.id)
+            .map(|(_, frame)| frame.clone())
+    }
 }
 
 impl CaptureController {
@@ -103,6 +129,11 @@ fn start(app: &AppHandle, session: u64) {
             );
             return;
         }
+        // Freeze the screen now, before anything changes (video keeps playing otherwise).
+        let freezing = {
+            let displays = displays.clone();
+            tauri::async_runtime::spawn_blocking(move || freeze(&displays))
+        };
         {
             let controller = app.state::<CaptureController>();
             let mut s = controller.lock();
@@ -111,8 +142,19 @@ fn start(app: &AppHandle, session: u64) {
             }
             s.displays = displays.clone();
             s.revealed = 0;
+            s.frozen.clear();
         }
-        if let Err(err) = overlay::prepare(&app, &displays) {
+        let prepared = overlay::prepare(&app, &displays);
+        let frozen = freezing.await.unwrap_or_default();
+        {
+            let controller = app.state::<CaptureController>();
+            let mut s = controller.lock();
+            if s.workflow.session() != session || s.workflow.phase() != Phase::SelectingRegion {
+                return;
+            }
+            s.frozen = frozen;
+        }
+        if let Err(err) = prepared {
             log::error!("overlay creation failed: {err}");
             end(
                 &app,
@@ -164,12 +206,83 @@ pub fn overlay_ready(app: &AppHandle, window: WebviewWindow, session: u64) {
     overlay::reveal(app, window, display, displays);
 }
 
+/// Captures every display whole, in parallel. Displays that fail are left out (their overlay
+/// stays live and the selection is captured directly).
+fn freeze(displays: &[Display]) -> Vec<(String, Arc<Frame>)> {
+    std::thread::scope(|scope| {
+        let shots: Vec<_> = displays
+            .iter()
+            .map(|d| {
+                scope.spawn(move || {
+                    let full = Rect::new(0.0, 0.0, d.logical.width, d.logical.height);
+                    match capture::capture_region(d, full) {
+                        Ok(frame) => Some((d.id.clone(), Arc::new(frame))),
+                        Err(err) => {
+                            log::warn!("freezing display {} failed: {err}", d.id);
+                            None
+                        }
+                    }
+                })
+            })
+            .collect();
+        shots
+            .into_iter()
+            .filter_map(|shot| shot.join().ok().flatten())
+            .collect()
+    })
+}
+
+/// The frozen image of the display behind overlay `window_label`, as raw RGBA for the page
+/// (see [`editor::encode_raw`]). `None` if the screen isn't frozen.
+pub async fn frozen_image(app: &AppHandle, window_label: &str) -> Option<Vec<u8>> {
+    let (display, frame) = {
+        let controller = app.state::<CaptureController>();
+        let s = controller.lock();
+        let display = s
+            .displays
+            .iter()
+            .find(|d| d.window_label() == window_label)?
+            .clone();
+        let frame = s.frozen_for(&display)?;
+        (display, frame)
+    };
+    tauri::async_runtime::spawn_blocking(move || {
+        let scale = frame.width as f64 / display.logical.width.max(1.0);
+        editor::encode_raw(
+            frame.width,
+            frame.height,
+            scale,
+            &editor::bgra_to_rgba(&frame),
+        )
+    })
+    .await
+    .ok()
+}
+
+/// The selection's pixels: cut from the frozen screen when there is one, captured otherwise.
+/// Must not be called on the main thread.
+fn grab(display: &Display, rect: Rect, frozen: Option<&Frame>) -> Result<Frame, CaptureError> {
+    if let Some(frame) = frozen {
+        let rect = rect
+            .clamp_to(display.logical.width, display.logical.height)
+            .filter(Rect::is_selection)
+            .ok_or(CaptureError::EmptySelection)?;
+        // The frame's own scale absorbs rounding between logical and pixel sizes.
+        let scale = frame.width as f64 / display.logical.width.max(1.0);
+        if let Some(region) = frame.crop(to_physical(rect, scale)) {
+            return Ok(region);
+        }
+    }
+    capture::capture_region(display, rect)
+}
+
 pub fn cancel(app: &AppHandle, session: u64) {
     let cancelled = app
         .state::<CaptureController>()
         .lock()
         .workflow
         .cancel(session);
+    app.state::<CaptureController>().lock().frozen.clear();
     if cancelled {
         overlay::hide_all(app);
         editor::unstash_after_capture(app);
@@ -184,8 +297,9 @@ pub async fn finish_selection(
     session: u64,
     rect: Rect,
     action: FinishAction,
+    markup: Markup,
 ) {
-    let (display, mode) = {
+    let (display, mode, frozen) = {
         let controller = app.state::<CaptureController>();
         let mut s = controller.lock();
         let display = s
@@ -196,7 +310,9 @@ pub async fn finish_selection(
         if display.is_none() || !s.workflow.begin_capture(session) {
             return;
         }
-        (display.expect("checked above"), s.workflow.mode())
+        let display = display.expect("checked above");
+        let frozen = s.frozen_for(&display);
+        (display, s.workflow.mode(), frozen)
     };
     overlay::hide_overlays(&app);
 
@@ -206,19 +322,27 @@ pub async fn finish_selection(
     }
 
     let outcome = match mode {
-        CaptureMode::Text => text_flow(&app, session, display, rect).await,
-        CaptureMode::Screenshot => screenshot_flow(&app, session, display, rect, action).await,
+        CaptureMode::Text => text_flow(&app, session, display, rect, frozen).await,
+        CaptureMode::Screenshot => {
+            screenshot_flow(&app, session, display, rect, action, markup, frozen).await
+        }
     };
     end(&app, session, outcome);
 }
 
 /// Capture → OCR → clipboard.
-async fn text_flow(app: &AppHandle, session: u64, display: Display, rect: Rect) -> Outcome {
+async fn text_flow(
+    app: &AppHandle,
+    session: u64,
+    display: Display,
+    rect: Rect,
+    frozen: Option<Arc<Frame>>,
+) -> Outcome {
     let options = settings::ocr_options(app);
     let worker_app = app.clone();
     let result = tauri::async_runtime::spawn_blocking(move || {
         let started = std::time::Instant::now();
-        let frame = capture::capture_region(&display, rect).map_err(capture_outcome)?;
+        let frame = grab(&display, rect, frozen.as_deref()).map_err(capture_outcome)?;
         let captured = started.elapsed();
         let controller = worker_app.state::<CaptureController>();
         if !controller.lock().workflow.begin_ocr(session) {
@@ -255,14 +379,32 @@ async fn screenshot_flow(
     display: Display,
     rect: Rect,
     action: FinishAction,
+    markup: Markup,
+    frozen: Option<Arc<Frame>>,
 ) -> Outcome {
     let worker_display = display.clone();
+    let Markup {
+        mut annotations,
+        layer,
+    } = markup;
+    annotations.truncate(MAX_ANNOTATIONS);
     let result = tauri::async_runtime::spawn_blocking(move || {
-        let frame = capture::capture_region(&worker_display, rect).map_err(capture_outcome)?;
-        Ok::<_, Outcome>(editor::EditorImage::from_frame(
-            &frame,
-            worker_display.scale,
-        ))
+        let frame = grab(&worker_display, rect, frozen.as_deref()).map_err(capture_outcome)?;
+        let mut image = editor::EditorImage::from_frame(&frame, worker_display.scale);
+        match action {
+            // Copy bakes the overlay's drawing into the pixels.
+            FinishAction::Copy => {
+                if let Some(png) = layer {
+                    match tauri::image::Image::from_bytes(&png) {
+                        Ok(layer) => image.composite(layer.rgba(), layer.width(), layer.height()),
+                        Err(err) => log::error!("decoding the annotation layer failed: {err}"),
+                    }
+                }
+            }
+            // The editor gets the shapes themselves, so they stay editable.
+            FinishAction::Edit => image.markup = annotations,
+        }
+        Ok::<_, Outcome>(image)
     })
     .await;
 
@@ -345,11 +487,12 @@ fn capture_outcome(err: CaptureError) -> Outcome {
 
 /// Terminal step for every session.
 fn end(app: &AppHandle, session: u64, outcome: Outcome) {
-    let ended = app
-        .state::<CaptureController>()
-        .lock()
-        .workflow
-        .finish(session);
+    let ended = {
+        let controller = app.state::<CaptureController>();
+        let mut s = controller.lock();
+        s.frozen.clear();
+        s.workflow.finish(session)
+    };
     overlay::hide_overlays(app);
     if !outcome.keeps_focus() {
         overlay::restore_focus(app);

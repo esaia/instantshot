@@ -8,6 +8,8 @@ export interface TextDraft {
   color: string;
   /** Font size in view (CSS) px. */
   fontSize: number;
+  /** Horizontal stretch of the glyphs, as rendered. */
+  scaleX: number;
   /** Position in view px, relative to the canvas. */
   x: number;
   y: number;
@@ -68,6 +70,8 @@ export function TextEditor({
         color: draft.color,
         width: `calc(${longest}ch + ${draft.fontSize}px)`,
         caretColor: draft.color,
+        transform: draft.scaleX === 1 ? undefined : `scaleX(${draft.scaleX})`,
+        transformOrigin: "left top",
       }}
       className="absolute z-10 resize-none overflow-hidden whitespace-pre rounded-sm border-0 bg-black/5 p-0 outline-1 outline-offset-2 outline-blue-500 outline-dashed dark:bg-white/10"
     />

@@ -56,3 +56,11 @@ export interface OverlaySession {
 
 /** What a confirmed screenshot selection does. */
 export type FinishAction = "copy" | "edit";
+
+/** Shapes drawn on the selection in the overlay, sent along with Copy or Edit. */
+export interface Markup {
+  /** Logical px relative to the selection (the editor scales them to source pixels). */
+  annotations: unknown[];
+  /** The shapes rendered at capture resolution as PNG bytes, for Copy. */
+  layer?: number[];
+}
