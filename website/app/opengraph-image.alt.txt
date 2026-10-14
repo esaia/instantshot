@@ -1,0 +1,1 @@
+TextPicker: snip anything, copy any text on screen. Free and open source for macOS and Windows.

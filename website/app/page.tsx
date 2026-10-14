@@ -3,10 +3,7 @@ import { DesktopDemo } from "./desktop-demo";
 import { EditorVideo } from "./editor-video";
 import { HeroCapture } from "./hero-capture";
 import { PickLogo } from "./logo";
-
-const RELEASES = "https://github.com/esaia/textpicker/releases/latest";
-const GITHUB = "https://github.com/esaia/textpicker";
-const X_PROFILE = "https://x.com/esaia__";
+import { GITHUB, RELEASES, SITE_DESCRIPTION, SITE_NAME, SITE_URL, X_PROFILE } from "./site";
 
 function AppleLogo() {
   return (
@@ -82,9 +79,11 @@ const places = [
   ["Apps and dialogs", "Error messages, labels and anything else you’d normally retype."],
 ];
 
-const faqs: { q: string; a: ReactNode }[] = [
+// `text` is the plain-text answer for structured data when `a` contains markup.
+const faqs: { q: string; a: ReactNode; text?: string }[] = [
   {
     q: "Is it really free?",
+    text: "Yes, completely. TextPicker is open source under the MIT license: no trial, no subscription, no ads and no account. The whole app, including how it handles your screen, is on GitHub for anyone to read, build or improve.",
     a: (
       <>
         Yes, completely. TextPicker is open source under the MIT license: no trial, no
@@ -119,6 +118,46 @@ const faqs: { q: string; a: ReactNode }[] = [
   },
 ];
 
+// Structured data for search engines: the app, its FAQ and the site.
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "SoftwareApplication",
+      "@id": `${SITE_URL}/#app`,
+      name: SITE_NAME,
+      url: SITE_URL,
+      description: SITE_DESCRIPTION,
+      applicationCategory: "UtilitiesApplication",
+      operatingSystem: "macOS 14 or later, Windows 10, Windows 11",
+      downloadUrl: RELEASES,
+      image: `${SITE_URL}/media/editor-demo.jpg`,
+      screenshot: shots.map((s) => `${SITE_URL}${s.src.split("?")[0]}`),
+      license: "https://opensource.org/licenses/MIT",
+      isAccessibleForFree: true,
+      offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+      author: { "@type": "Person", name: "Esaia", url: X_PROFILE },
+      sameAs: [GITHUB],
+    },
+    {
+      "@type": "FAQPage",
+      "@id": `${SITE_URL}/#faq`,
+      mainEntity: faqs.map((f) => ({
+        "@type": "Question",
+        name: f.q,
+        acceptedAnswer: { "@type": "Answer", text: f.text ?? f.a },
+      })),
+    },
+    {
+      "@type": "WebSite",
+      "@id": `${SITE_URL}/#website`,
+      url: SITE_URL,
+      name: SITE_NAME,
+      inLanguage: "en",
+    },
+  ],
+};
+
 function Downloads() {
   return (
     <div className="downloads">
@@ -135,6 +174,10 @@ function Downloads() {
 export default function Home() {
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }}
+      />
       <header className="nav-wrap">
         <nav className="nav" aria-label="Main">
           <a className="brand" href="#top">
@@ -143,6 +186,7 @@ export default function Home() {
           </a>
           <div className="nav-links">
             <a href="#how">How it works</a>
+            <a href="#editor">Editor</a>
             <a href="#faq">FAQ</a>
           </div>
           <a className="nav-github" href={GITHUB} aria-label="TextPicker on GitHub">
