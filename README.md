@@ -185,7 +185,7 @@ are unsigned by default. To sign them, add a code-signing certificate following
 [Tauri's Windows signing guide](https://tauri.app/distribute/sign/windows/). The installer
 downloads the WebView2 runtime if it's missing (Windows 10).
 
-Placeholder branding lives in `src-tauri/icons` (regenerate with `pnpm tauri icon <1024px png>`).
+Branding lives in `src-tauri/icons`. The sources are `src-tauri/icons/source/*.svg`; render `app-icon.svg` to a 1024px PNG and run `pnpm tauri icon src-tauri/icons/app-icon.png`, then delete the generated `android/` and `ios/` folders. `tray-template.png` is the 44px render of `tray-template.svg`.
 The bundle identifier `app.textpicker.desktop` and the website link in
 `src/components/Settings.tsx` are placeholders.
 

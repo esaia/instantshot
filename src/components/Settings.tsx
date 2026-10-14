@@ -280,7 +280,7 @@ function displayNames(tags: string[]): string[] {
 }
 
 function AppIcon() {
-  // Brand mark: a guitar pick ("Picker") with a text cursor.
+  // Brand mark: a guitar pick ("Picker") with a text cursor inside snip corners.
   return (
     <svg viewBox="0 0 64 64" className="size-10 shrink-0" aria-hidden="true">
       <path
@@ -288,11 +288,19 @@ function AppIcon() {
         fill="#ade4fc"
       />
       <path
-        d="M26.5 17h11M26.5 39h11M32 17v22"
+        d="M29 22h6M29 36h6M32 22v14"
         fill="none"
         stroke="#0f1217"
-        strokeWidth="4.2"
+        strokeWidth="3.4"
         strokeLinecap="round"
+      />
+      <path
+        d="M22 18v-3.5h3.5M38.5 14.5H42V18M42 37.5V41h-3.5M25.5 41H22v-3.5"
+        fill="none"
+        stroke="#0f1217"
+        strokeWidth="3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
       />
     </svg>
   );
