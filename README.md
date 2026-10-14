@@ -191,4 +191,4 @@ The bundle identifier `app.textpicker.desktop` and the website link in
 
 ## License
 
-Not yet chosen. Add a `LICENSE` file before publishing.
+TextPicker is free and open source under the [MIT License](LICENSE).
