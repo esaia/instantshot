@@ -1,5 +1,6 @@
 /// Every app command. Declaring them makes each one deny-by-default; the capability files grant
-/// overlay commands only to overlay windows and settings commands only to the settings window.
+/// overlay commands only to overlay windows, settings commands only to the settings window, and
+/// editor commands only to the editor window.
 const COMMANDS: &[&str] = &[
     // Overlay windows
     "overlay_session",
@@ -11,6 +12,9 @@ const COMMANDS: &[&str] = &[
     "get_settings",
     "update_settings",
     "set_shortcut",
+    "set_screenshot_shortcut",
+    "choose_save_folder",
+    "reset_save_folder",
     "set_shortcut_paused",
     "get_launch_at_login",
     "set_launch_at_login",
@@ -19,6 +23,18 @@ const COMMANDS: &[&str] = &[
     "ocr_language_status",
     "open_permission_settings",
     "restart_app",
+    // Screenshot editor window
+    "editor_image",
+    "editor_ready",
+    "copy_image",
+    "save_image",
+    "quick_save",
+    "reveal_last_save",
+    "start_drag",
+    "list_system_wallpapers",
+    "wallpaper_image",
+    "get_editor_style",
+    "set_editor_style",
 ];
 
 fn main() {

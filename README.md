@@ -7,6 +7,10 @@ around any text on screen (websites, apps, videos, images, PDFs), and the recogn
 your clipboard, ready to paste.
 
 - Default shortcut: **⇧⌘2** on macOS, **Ctrl+Shift+2** on Windows
+- **Screenshots** (**⇧⌘1** / **Ctrl+Shift+1**): select a region and it opens in an editor that
+  puts it on a wallpaper, color or gradient background with padding, rounded corners, shadow,
+  window chrome and aspect presets, plus arrows, shapes, text, blur and pixelate. Copy, save,
+  quick-save to a folder, or drag the result into any app.
 - Lives in the menu bar (macOS) or the system tray (Windows); no Dock or taskbar icon
 - Text recognition runs **locally** with the OS's own engine: Apple Vision on macOS,
   Windows.Media.Ocr on Windows
@@ -14,9 +18,12 @@ your clipboard, ready to paste.
 ## Privacy
 
 TextPicker never uploads screenshots or text, has no analytics or telemetry, and makes no
-network requests. Captured pixels exist only in memory for the duration of one recognition;
-nothing is written to disk. The only file it writes is its settings (`settings.json` in the app
-data directory). Diagnostic logs record timings and errors, never captured text.
+network requests. For text capture, pixels exist only in memory for the duration of one
+recognition. A screenshot stays in memory while its editor is open and is written to disk only
+when you save it; dragging it out writes a temporary PNG to the app's cache folder, deleted when
+the editor closes. Besides your saved files, the only file TextPicker writes is its settings
+(`settings.json` in the app data directory, including the editor's last style). Diagnostic logs
+record timings and errors, never captured text.
 
 ## Requirements
 

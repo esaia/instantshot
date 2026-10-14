@@ -52,6 +52,27 @@ export function useSettings() {
     }
   }, []);
 
+  /** Returns an error message, or null on success. */
+  const setScreenshotShortcut = useCallback(async (shortcut: string): Promise<string | null> => {
+    try {
+      setSettings(await api.setScreenshotShortcut(shortcut));
+      setInfo(await api.appInfo());
+      return null;
+    } catch (err) {
+      return errorMessage(err);
+    }
+  }, []);
+
+  const changeSaveFolder = useCallback(async (reset: boolean) => {
+    try {
+      setSettings(await (reset ? api.resetSaveFolder() : api.chooseSaveFolder()));
+      setInfo(await api.appInfo());
+      setError(null);
+    } catch (err) {
+      setError(errorMessage(err));
+    }
+  }, []);
+
   const setLaunchAtLogin = useCallback(async (enabled: boolean) => {
     setLaunchAtLoginState(enabled);
     try {
@@ -63,5 +84,15 @@ export function useSettings() {
     }
   }, []);
 
-  return { settings, info, launchAtLogin, error, update, setShortcut, setLaunchAtLogin };
+  return {
+    settings,
+    info,
+    launchAtLogin,
+    error,
+    update,
+    setShortcut,
+    setScreenshotShortcut,
+    changeSaveFolder,
+    setLaunchAtLogin,
+  };
 }

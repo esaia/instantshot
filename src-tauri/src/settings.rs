@@ -2,6 +2,7 @@
 //! and writes them only through commands. "Launch at login" is not stored here: the autostart
 //! plugin (the OS login item) is the source of truth.
 
+use std::path::PathBuf;
 use std::sync::Mutex;
 
 use serde::{Deserialize, Serialize};
@@ -12,11 +13,20 @@ use crate::ocr::OcrOptions;
 
 const STORE_FILE: &str = "settings.json";
 const STORE_KEY: &str = "settings";
+/// The screenshot editor's last style. Separate from [`Settings`] so the Settings window, which
+/// writes its whole copy back, can never overwrite it.
+const EDITOR_STYLE_KEY: &str = "editorStyle";
+const EDITOR_STYLE_MAX_BYTES: usize = 32 * 1024;
 
 #[cfg(target_os = "macos")]
 pub const DEFAULT_SHORTCUT: &str = "Super+Shift+Digit2";
 #[cfg(not(target_os = "macos"))]
 pub const DEFAULT_SHORTCUT: &str = "Control+Shift+Digit2";
+
+#[cfg(target_os = "macos")]
+pub const DEFAULT_SCREENSHOT_SHORTCUT: &str = "Super+Shift+Digit1";
+#[cfg(not(target_os = "macos"))]
+pub const DEFAULT_SCREENSHOT_SHORTCUT: &str = "Control+Shift+Digit1";
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
@@ -28,6 +38,9 @@ pub struct Settings {
     pub preserve_line_breaks: bool,
     /// Set once the Settings window has been shown on first launch.
     pub onboarded: bool,
+    pub screenshot_shortcut: String,
+    /// Quick-save destination. `None` means the Desktop.
+    pub save_folder: Option<String>,
 }
 
 impl Default for Settings {
@@ -39,6 +52,8 @@ impl Default for Settings {
             auto_language: true,
             preserve_line_breaks: true,
             onboarded: false,
+            screenshot_shortcut: DEFAULT_SCREENSHOT_SHORTCUT.to_string(),
+            save_folder: None,
         }
     }
 }
@@ -83,6 +98,29 @@ pub fn save(app: &AppHandle, settings: Settings) -> Result<(), String> {
     Ok(())
 }
 
+/// Quick-save folder: the configured one if it still exists, otherwise the Desktop.
+pub fn save_folder(app: &AppHandle) -> Option<PathBuf> {
+    get(app)
+        .save_folder
+        .map(PathBuf::from)
+        .filter(|p| p.is_dir())
+        .or_else(|| app.path().desktop_dir().ok())
+}
+
+/// The editor's last style, as opaque JSON validated by the frontend.
+pub fn editor_style(app: &AppHandle) -> Option<serde_json::Value> {
+    app.store(STORE_FILE).ok()?.get(EDITOR_STYLE_KEY)
+}
+
+pub fn save_editor_style(app: &AppHandle, style: serde_json::Value) -> Result<(), String> {
+    if style.to_string().len() > EDITOR_STYLE_MAX_BYTES {
+        return Err("style too large".into());
+    }
+    let store = app.store(STORE_FILE).map_err(|e| e.to_string())?;
+    store.set(EDITOR_STYLE_KEY, style);
+    store.save().map_err(|e| e.to_string())
+}
+
 pub fn ocr_options(app: &AppHandle) -> OcrOptions {
     let s = get(app);
     OcrOptions {
@@ -101,5 +139,7 @@ mod tests {
         assert!(!s.show_notification);
         assert_eq!(s.shortcut, DEFAULT_SHORTCUT);
         assert!(s.preserve_line_breaks);
+        assert_eq!(s.screenshot_shortcut, DEFAULT_SCREENSHOT_SHORTCUT);
+        assert_eq!(s.save_folder, None);
     }
 }

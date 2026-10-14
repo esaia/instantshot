@@ -1,0 +1,24 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "editor",
+  "description": "Screenshot editor: load the capture, export results, wallpapers and style",
+  "windows": [
+    "editor"
+  ],
+  "permissions": [
+    "core:event:default",
+    "core:window:allow-start-dragging",
+    "core:window:allow-close",
+    "allow-editor-image",
+    "allow-editor-ready",
+    "allow-copy-image",
+    "allow-save-image",
+    "allow-quick-save",
+    "allow-reveal-last-save",
+    "allow-start-drag",
+    "allow-list-system-wallpapers",
+    "allow-wallpaper-image",
+    "allow-get-editor-style",
+    "allow-set-editor-style"
+  ]
+}

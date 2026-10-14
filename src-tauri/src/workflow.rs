@@ -1,7 +1,8 @@
 //! Capture workflow state machine. Pure logic, no Tauri types, so every transition is testable.
 //!
 //! ```text
-//! Idle → SelectingRegion → Capturing → ProcessingOcr → Copying → Idle
+//! Idle → SelectingRegion → Capturing → ProcessingOcr → Copying → Idle      (CaptureMode::Text)
+//! Idle → SelectingRegion → Capturing → OpeningEditor → Idle                (CaptureMode::Screenshot)
 //! ```
 //! Every session carries an id; calls with a stale id are ignored, so a late event from an old
 //! overlay can never affect a newer session.
@@ -13,18 +14,36 @@ pub enum Phase {
     Capturing,
     ProcessingOcr,
     Copying,
+    OpeningEditor,
+}
+
+/// What a session does with the selected region.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum CaptureMode {
+    /// Recognize text and copy it.
+    #[default]
+    Text,
+    /// Open the screenshot in the editor.
+    Screenshot,
 }
 
 /// How a session ended. Drives the user-facing feedback message.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Outcome {
-    Completed { chars: usize },
+    Completed {
+        chars: usize,
+    },
     Cancelled,
     PermissionDenied,
     CaptureFailed(String),
     OcrFailed(String),
     NoTextFound,
     ClipboardFailed,
+    /// The screenshot editor took over; it owns focus from here on.
+    EditorOpened,
+    /// A screenshot was copied straight from the selection.
+    ImageCopied,
 }
 
 impl Outcome {
@@ -36,18 +55,24 @@ impl Outcome {
             } else {
                 format!("Copied {chars} characters")
             }),
-            Outcome::Cancelled => None,
+            Outcome::Cancelled | Outcome::EditorOpened => None,
             Outcome::PermissionDenied => {
                 Some("Screen Recording permission is required".to_string())
             }
             Outcome::CaptureFailed(msg) | Outcome::OcrFailed(msg) => Some(msg.clone()),
             Outcome::NoTextFound => Some("No text found".to_string()),
+            Outcome::ImageCopied => Some("Screenshot copied".to_string()),
             Outcome::ClipboardFailed => Some("Couldn't access the clipboard".to_string()),
         }
     }
 
     pub fn is_success(&self) -> bool {
-        matches!(self, Outcome::Completed { .. })
+        matches!(self, Outcome::Completed { .. } | Outcome::ImageCopied)
+    }
+
+    /// Whether focus should stay with TextPicker instead of returning to the previous app.
+    pub fn keeps_focus(&self) -> bool {
+        matches!(self, Outcome::EditorOpened)
     }
 }
 
@@ -56,6 +81,8 @@ impl Outcome {
 pub enum HotkeyAction {
     Start(u64),
     Cancel(u64),
+    /// The other shortcut was pressed while selecting: same session, new mode.
+    Switched,
     Ignore,
 }
 
@@ -63,6 +90,7 @@ pub enum HotkeyAction {
 pub struct Workflow {
     phase: Phase,
     session: u64,
+    mode: CaptureMode,
 }
 
 impl Default for Workflow {
@@ -70,6 +98,7 @@ impl Default for Workflow {
         Self {
             phase: Phase::Idle,
             session: 0,
+            mode: CaptureMode::Text,
         }
     }
 }
@@ -83,16 +112,25 @@ impl Workflow {
         self.session
     }
 
-    /// Shortcut pressed: start a session when idle, cancel when selecting (escape hatch), and
-    /// ignore while a capture is already being processed.
-    pub fn on_hotkey(&mut self) -> HotkeyAction {
+    pub fn mode(&self) -> CaptureMode {
+        self.mode
+    }
+
+    /// Shortcut pressed: start a session when idle. While selecting, the same shortcut cancels
+    /// (escape hatch) and the other one switches mode. Ignored while a capture is processed.
+    pub fn on_hotkey(&mut self, mode: CaptureMode) -> HotkeyAction {
         match self.phase {
             Phase::Idle => {
                 self.session = self.session.wrapping_add(1);
                 self.phase = Phase::SelectingRegion;
+                self.mode = mode;
                 HotkeyAction::Start(self.session)
             }
-            Phase::SelectingRegion => HotkeyAction::Cancel(self.session),
+            Phase::SelectingRegion if mode == self.mode => HotkeyAction::Cancel(self.session),
+            Phase::SelectingRegion => {
+                self.mode = mode;
+                HotkeyAction::Switched
+            }
             _ => HotkeyAction::Ignore,
         }
     }
@@ -103,7 +141,19 @@ impl Workflow {
     }
 
     pub fn begin_ocr(&mut self, session: u64) -> bool {
-        self.advance(session, Phase::Capturing, Phase::ProcessingOcr)
+        self.mode == CaptureMode::Text
+            && self.advance(session, Phase::Capturing, Phase::ProcessingOcr)
+    }
+
+    /// Screenshot mode, "Copy": the captured image goes straight to the clipboard.
+    pub fn begin_image_copy(&mut self, session: u64) -> bool {
+        self.mode == CaptureMode::Screenshot
+            && self.advance(session, Phase::Capturing, Phase::Copying)
+    }
+
+    pub fn begin_editor(&mut self, session: u64) -> bool {
+        self.mode == CaptureMode::Screenshot
+            && self.advance(session, Phase::Capturing, Phase::OpeningEditor)
     }
 
     pub fn begin_copy(&mut self, session: u64) -> bool {
@@ -151,7 +201,7 @@ mod tests {
     #[test]
     fn happy_path() {
         let mut w = Workflow::default();
-        let HotkeyAction::Start(s) = w.on_hotkey() else {
+        let HotkeyAction::Start(s) = w.on_hotkey(CaptureMode::Text) else {
             panic!("expected start")
         };
         assert!(w.begin_capture(s));
@@ -164,10 +214,10 @@ mod tests {
     #[test]
     fn second_press_while_selecting_cancels() {
         let mut w = Workflow::default();
-        let HotkeyAction::Start(s) = w.on_hotkey() else {
+        let HotkeyAction::Start(s) = w.on_hotkey(CaptureMode::Text) else {
             panic!()
         };
-        assert_eq!(w.on_hotkey(), HotkeyAction::Cancel(s));
+        assert_eq!(w.on_hotkey(CaptureMode::Text), HotkeyAction::Cancel(s));
         assert!(w.cancel(s));
         assert_eq!(w.phase(), Phase::Idle);
     }
@@ -175,23 +225,23 @@ mod tests {
     #[test]
     fn presses_during_processing_are_ignored() {
         let mut w = Workflow::default();
-        let HotkeyAction::Start(s) = w.on_hotkey() else {
+        let HotkeyAction::Start(s) = w.on_hotkey(CaptureMode::Text) else {
             panic!()
         };
         w.begin_capture(s);
-        assert_eq!(w.on_hotkey(), HotkeyAction::Ignore);
+        assert_eq!(w.on_hotkey(CaptureMode::Text), HotkeyAction::Ignore);
         w.begin_ocr(s);
-        assert_eq!(w.on_hotkey(), HotkeyAction::Ignore);
+        assert_eq!(w.on_hotkey(CaptureMode::Text), HotkeyAction::Ignore);
     }
 
     #[test]
     fn stale_sessions_are_ignored() {
         let mut w = Workflow::default();
-        let HotkeyAction::Start(old) = w.on_hotkey() else {
+        let HotkeyAction::Start(old) = w.on_hotkey(CaptureMode::Text) else {
             panic!()
         };
         w.cancel(old);
-        let HotkeyAction::Start(new) = w.on_hotkey() else {
+        let HotkeyAction::Start(new) = w.on_hotkey(CaptureMode::Text) else {
             panic!()
         };
         assert_ne!(old, new);
@@ -205,7 +255,7 @@ mod tests {
     #[test]
     fn cannot_cancel_after_capture_started() {
         let mut w = Workflow::default();
-        let HotkeyAction::Start(s) = w.on_hotkey() else {
+        let HotkeyAction::Start(s) = w.on_hotkey(CaptureMode::Text) else {
             panic!()
         };
         w.begin_capture(s);
@@ -216,12 +266,74 @@ mod tests {
     #[test]
     fn out_of_order_transitions_fail() {
         let mut w = Workflow::default();
-        let HotkeyAction::Start(s) = w.on_hotkey() else {
+        let HotkeyAction::Start(s) = w.on_hotkey(CaptureMode::Text) else {
             panic!()
         };
         assert!(!w.begin_ocr(s));
         assert!(!w.begin_copy(s));
         assert_eq!(w.phase(), Phase::SelectingRegion);
+    }
+
+    #[test]
+    fn screenshot_path() {
+        let mut w = Workflow::default();
+        let HotkeyAction::Start(s) = w.on_hotkey(CaptureMode::Screenshot) else {
+            panic!()
+        };
+        assert_eq!(w.mode(), CaptureMode::Screenshot);
+        assert!(w.begin_capture(s));
+        assert!(!w.begin_ocr(s));
+        assert!(w.begin_editor(s));
+        assert_eq!(w.phase(), Phase::OpeningEditor);
+        assert!(!w.begin_image_copy(s));
+        assert!(w.finish(s));
+        assert_eq!(w.phase(), Phase::Idle);
+    }
+
+    #[test]
+    fn screenshot_copy_path() {
+        let mut w = Workflow::default();
+        let HotkeyAction::Start(s) = w.on_hotkey(CaptureMode::Screenshot) else {
+            panic!()
+        };
+        assert!(w.begin_capture(s));
+        assert!(w.begin_image_copy(s));
+        assert_eq!(w.phase(), Phase::Copying);
+        assert!(Outcome::ImageCopied.is_success());
+    }
+
+    #[test]
+    fn text_mode_cannot_open_editor() {
+        let mut w = Workflow::default();
+        let HotkeyAction::Start(s) = w.on_hotkey(CaptureMode::Text) else {
+            panic!()
+        };
+        assert!(w.begin_capture(s));
+        assert!(!w.begin_editor(s));
+        assert!(!w.begin_image_copy(s));
+        assert!(w.begin_ocr(s));
+    }
+
+    #[test]
+    fn other_shortcut_while_selecting_switches_mode() {
+        let mut w = Workflow::default();
+        let HotkeyAction::Start(s) = w.on_hotkey(CaptureMode::Text) else {
+            panic!()
+        };
+        assert_eq!(w.on_hotkey(CaptureMode::Screenshot), HotkeyAction::Switched);
+        assert_eq!(w.mode(), CaptureMode::Screenshot);
+        assert_eq!(w.phase(), Phase::SelectingRegion);
+        assert_eq!(
+            w.on_hotkey(CaptureMode::Screenshot),
+            HotkeyAction::Cancel(s)
+        );
+    }
+
+    #[test]
+    fn editor_outcome_is_silent_and_keeps_focus() {
+        assert_eq!(Outcome::EditorOpened.message(), None);
+        assert!(Outcome::EditorOpened.keeps_focus());
+        assert!(!Outcome::Cancelled.keeps_focus());
     }
 
     #[test]

@@ -40,6 +40,22 @@ Status key: ✅ verified on real hardware · ⬜ not yet verified.
 - ⬜ Second launch from Finder shows Settings, no second instance
 - ⬜ Capture HUD appears near the bottom of the active display and fades
 
+### Screenshot editor (macOS)
+
+- ⬜ Screenshot shortcut and tray *Capture Screenshot* open the editor, focused, on the captured display
+- ⬜ Setting both shortcuts to the same keys is rejected ("Already used for …")
+- ⬜ Pressing the other shortcut while selecting switches mode; the same one cancels
+- ⬜ Dock icon appears while the editor is open and disappears after closing; focus returns to the previous app
+- ⬜ Capturing again while the editor is open replaces the image and keeps the style
+- ⬜ ⌘C pastes into Preview/Slack at native resolution; transparent background stays transparent
+- ⬜ ⌘S save dialog writes the PNG; cancel does nothing; ⇧⌘S quick-saves with " 2" suffix on clashes
+- ⬜ "Show in Finder" reveals the saved file
+- ⬜ Drag handle drops a PNG into Finder, Mail and Slack; cache `drag/` folder is empty after closing
+- ⬜ "Your Desktop Pictures" lists only locally installed images and they load quickly
+- ⬜ Blur/pixelate hide the content in the exported file
+- ⬜ Last style is restored for the next screenshot
+- ⬜ Text capture is unchanged (toast, clipboard, focus restore)
+
 ### Platform
 
 - ✅ macOS 26 on Apple Silicon (built-in Retina display)

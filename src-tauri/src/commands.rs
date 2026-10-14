@@ -1,23 +1,37 @@
 //! Tauri commands. Kept thin: they validate input and delegate to the owning module.
 
 use serde::Serialize;
+use tauri::ipc::{Request, Response};
 use tauri::{AppHandle, Manager, WebviewWindow};
 use tauri_plugin_autostart::ManagerExt;
+use tauri_plugin_dialog::DialogExt;
 
-use crate::controller::{self, CaptureController};
+use crate::controller::{self, CaptureController, FinishAction};
 use crate::error::AppError;
 use crate::geometry::Rect;
 use crate::ocr::{self, LanguageStatus};
 use crate::permissions::{self, PermissionState};
 use crate::settings::{self, Settings};
-use crate::{overlay, shortcuts};
+use crate::workflow::CaptureMode;
+use crate::{editor, export, overlay, shortcuts, wallpapers};
+
+const TEXT_CAPTURE: &str = "Capture Text";
+const SCREENSHOT_CAPTURE: &str = "Capture Screenshot";
 
 // ---- Overlay ----
 
+#[derive(Serialize)]
+pub struct OverlaySession {
+    session: u64,
+    mode: CaptureMode,
+}
+
 /// Returns the session the overlay should display, or `None` if no selection is active.
 #[tauri::command]
-pub fn overlay_session(app: AppHandle) -> Option<u64> {
-    app.state::<CaptureController>().selecting_session()
+pub fn overlay_session(app: AppHandle) -> Option<OverlaySession> {
+    app.state::<CaptureController>()
+        .selecting()
+        .map(|(session, mode)| OverlaySession { session, mode })
 }
 
 #[tauri::command]
@@ -28,9 +42,16 @@ pub fn overlay_ready(app: AppHandle, window: WebviewWindow, session: u64) {
 }
 
 #[tauri::command]
-pub async fn finish_selection(app: AppHandle, window: WebviewWindow, session: u64, rect: Rect) {
+pub async fn finish_selection(
+    app: AppHandle,
+    window: WebviewWindow,
+    session: u64,
+    rect: Rect,
+    action: Option<FinishAction>,
+) {
     if overlay::is_overlay(window.label()) {
-        controller::finish_selection(app, window.label().to_string(), session, rect).await;
+        let label = window.label().to_string();
+        controller::finish_selection(app, label, session, rect, action.unwrap_or_default()).await;
     }
 }
 
@@ -50,16 +71,27 @@ pub struct AppInfo {
     default_shortcut: &'static str,
     /// False if the saved shortcut couldn't be registered (e.g. taken by another app).
     shortcut_registered: bool,
+    default_screenshot_shortcut: &'static str,
+    screenshot_shortcut_registered: bool,
+    /// Where quick saves go (resolved: the configured folder or the Desktop).
+    save_folder: Option<String>,
 }
 
 #[tauri::command]
 pub fn app_info(app: AppHandle) -> AppInfo {
+    let current = settings::get(&app);
     AppInfo {
         version: app.package_info().version.to_string(),
         os: os_description(),
         platform: std::env::consts::OS,
         default_shortcut: settings::DEFAULT_SHORTCUT,
-        shortcut_registered: shortcuts::is_registered(&app, &settings::get(&app).shortcut),
+        shortcut_registered: shortcuts::is_registered(&app, &current.shortcut),
+        default_screenshot_shortcut: settings::DEFAULT_SCREENSHOT_SHORTCUT,
+        screenshot_shortcut_registered: shortcuts::is_registered(
+            &app,
+            &current.screenshot_shortcut,
+        ),
+        save_folder: settings::save_folder(&app).map(|p| p.display().to_string()),
     }
 }
 
@@ -68,11 +100,14 @@ pub fn get_settings(app: AppHandle) -> Settings {
     settings::get(&app)
 }
 
-/// Saves everything except the shortcut, which goes through [`set_shortcut`].
+/// Saves everything except the shortcuts and save folder, which have their own commands.
 #[tauri::command]
 pub fn update_settings(app: AppHandle, settings: Settings) -> Result<Settings, AppError> {
+    let current = settings::get(&app);
     let mut next = settings;
-    next.shortcut = settings::get(&app).shortcut;
+    next.shortcut = current.shortcut;
+    next.screenshot_shortcut = current.screenshot_shortcut;
+    next.save_folder = current.save_folder;
     settings::save(&app, next.clone()).map_err(|e| {
         log::error!("saving settings failed: {e}");
         AppError::msg("Couldn't save settings")
@@ -83,10 +118,61 @@ pub fn update_settings(app: AppHandle, settings: Settings) -> Result<Settings, A
 #[tauri::command]
 pub fn set_shortcut(app: AppHandle, shortcut: String) -> Result<Settings, AppError> {
     let mut current = settings::get(&app);
+    shortcuts::ensure_distinct(&shortcut, &current.screenshot_shortcut, SCREENSHOT_CAPTURE)
+        .map_err(AppError::Message)?;
     shortcuts::replace(&app, Some(&current.shortcut), &shortcut).map_err(AppError::Message)?;
     current.shortcut = shortcut;
-    settings::save(&app, current.clone()).map_err(|_| AppError::msg("Couldn't save settings"))?;
-    Ok(current)
+    save(&app, current)
+}
+
+#[tauri::command]
+pub fn set_screenshot_shortcut(app: AppHandle, shortcut: String) -> Result<Settings, AppError> {
+    let mut current = settings::get(&app);
+    shortcuts::ensure_distinct(&shortcut, &current.shortcut, TEXT_CAPTURE)
+        .map_err(AppError::Message)?;
+    shortcuts::replace(&app, Some(&current.screenshot_shortcut), &shortcut)
+        .map_err(AppError::Message)?;
+    current.screenshot_shortcut = shortcut;
+    save(&app, current)
+}
+
+/// Lets the user pick the quick-save folder. Unchanged if the dialog is cancelled.
+#[tauri::command]
+pub async fn choose_save_folder(
+    app: AppHandle,
+    window: WebviewWindow,
+) -> Result<Settings, AppError> {
+    let mut dialog = app
+        .dialog()
+        .file()
+        .set_parent(&window)
+        .set_title("Choose Where to Save Screenshots");
+    if let Some(dir) = settings::save_folder(&app) {
+        dialog = dialog.set_directory(dir);
+    }
+    let picked = tauri::async_runtime::spawn_blocking(move || dialog.blocking_pick_folder())
+        .await
+        .ok()
+        .flatten()
+        .and_then(|p| p.into_path().ok());
+    let mut current = settings::get(&app);
+    let Some(folder) = picked else {
+        return Ok(current);
+    };
+    current.save_folder = Some(folder.display().to_string());
+    save(&app, current)
+}
+
+#[tauri::command]
+pub fn reset_save_folder(app: AppHandle) -> Result<Settings, AppError> {
+    let mut current = settings::get(&app);
+    current.save_folder = None;
+    save(&app, current)
+}
+
+fn save(app: &AppHandle, next: Settings) -> Result<Settings, AppError> {
+    settings::save(app, next.clone()).map_err(|_| AppError::msg("Couldn't save settings"))?;
+    Ok(next)
 }
 
 /// Pauses the capture shortcut while the user records a new one in Settings.
@@ -107,6 +193,89 @@ pub fn set_launch_at_login(app: AppHandle, enabled: bool) -> Result<bool, AppErr
         AppError::msg("Couldn't change the login item")
     })?;
     Ok(enabled)
+}
+
+// ---- Screenshot editor ----
+
+/// The captured screenshot as raw bytes (see [`editor::encode_raw`]).
+#[tauri::command]
+pub fn editor_image(app: AppHandle) -> Result<Response, AppError> {
+    editor::current_image(&app)
+        .map(Response::new)
+        .ok_or_else(|| AppError::msg("No screenshot to edit"))
+}
+
+/// The editor page painted the new screenshot: show the window.
+#[tauri::command]
+pub fn editor_ready(app: AppHandle, window: WebviewWindow) {
+    if window.label() == editor::EDITOR_LABEL {
+        editor::page_ready(&app);
+    }
+}
+
+#[tauri::command]
+pub async fn copy_image(app: AppHandle, request: Request<'_>) -> Result<(), AppError> {
+    export::copy_image(&app, &request).await
+}
+
+#[tauri::command]
+pub async fn save_image(
+    app: AppHandle,
+    window: WebviewWindow,
+    request: Request<'_>,
+) -> Result<Option<String>, AppError> {
+    export::save_image(&app, &window, &request).await
+}
+
+#[tauri::command]
+pub async fn quick_save(app: AppHandle, request: Request<'_>) -> Result<String, AppError> {
+    export::quick_save(&app, &request).await
+}
+
+#[tauri::command]
+pub fn reveal_last_save(app: AppHandle) -> Result<(), AppError> {
+    export::reveal_last_save(&app)
+}
+
+#[tauri::command]
+pub async fn start_drag(
+    app: AppHandle,
+    window: WebviewWindow,
+    request: Request<'_>,
+) -> Result<(), AppError> {
+    export::start_drag(&app, &window, &request).await
+}
+
+#[tauri::command]
+pub fn list_system_wallpapers(app: AppHandle) -> Vec<wallpapers::Wallpaper> {
+    wallpapers::list(&app)
+}
+
+#[tauri::command]
+pub async fn wallpaper_image(
+    app: AppHandle,
+    id: String,
+    max_px: u32,
+) -> Result<Response, AppError> {
+    tauri::async_runtime::spawn_blocking(move || wallpapers::image(&app, &id, max_px))
+        .await
+        .ok()
+        .flatten()
+        .map(Response::new)
+        .ok_or_else(|| AppError::msg("Couldn't load the wallpaper"))
+}
+
+#[tauri::command]
+pub fn get_editor_style(app: AppHandle) -> Option<serde_json::Value> {
+    settings::editor_style(&app)
+}
+
+#[tauri::command]
+pub fn set_editor_style(app: AppHandle, style: serde_json::Value) -> Result<(), AppError> {
+    settings::save_editor_style(&app, style).map_err(|e| {
+        log::warn!("saving editor style failed: {e}");
+        AppError::msg("Couldn't save the style")
+    })
 }
 
 // ---- Permissions / OCR status ----

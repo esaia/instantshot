@@ -101,9 +101,19 @@ pub fn reveal(app: &AppHandle, window: WebviewWindow, display: Display, displays
 
 /// Hides every overlay immediately and returns focus to the previously active app.
 pub fn hide_all(app: &AppHandle) {
+    hide_overlays(app);
+    restore_focus(app);
+}
+
+/// Hides every overlay without touching focus (the screenshot editor takes over instead).
+pub fn hide_overlays(app: &AppHandle) {
     for window in overlays(app) {
         let _ = window.hide();
     }
+}
+
+/// Re-activates the app that was frontmost when the capture started, if any.
+pub fn restore_focus(app: &AppHandle) {
     let _ = app.run_on_main_thread(platform::restore_focus);
 }
 

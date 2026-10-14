@@ -31,6 +31,10 @@ html.settings body {
   @apply bg-neutral-100 text-neutral-900 dark:bg-neutral-900 dark:text-neutral-100;
 }
 
+html.editor body {
+  @apply overflow-hidden bg-neutral-100 dark:bg-neutral-900;
+}
+
 input,
 textarea {
   -webkit-user-select: text;
@@ -39,8 +43,13 @@ textarea {
 
 /* Browser preview only: room for the preview bar, and a busy backdrop behind the
    transparent overlay/toast views so dimming and the selection hole are visible. */
-html.preview.settings body {
+html.preview.settings body,
+html.preview.editor #root {
   padding-top: 2rem;
+}
+
+html.preview.editor #root {
+  box-sizing: border-box;
 }
 
 html.preview.transparent body {

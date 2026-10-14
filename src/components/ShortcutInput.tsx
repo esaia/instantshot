@@ -7,10 +7,11 @@ interface Props {
   platform: string;
   /** Resolves to an error message, or null when the shortcut was registered. */
   onChange: (accelerator: string) => Promise<string | null>;
+  label?: string;
 }
 
 /** Click to record a new global shortcut. Escape cancels; the old shortcut stays active. */
-export function ShortcutInput({ value, platform, onChange }: Props) {
+export function ShortcutInput({ value, platform, onChange, label = "Capture shortcut" }: Props) {
   const [recording, setRecording] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -46,7 +47,7 @@ export function ShortcutInput({ value, platform, onChange }: Props) {
           setRecording((r) => !r);
         }}
         onBlur={() => setRecording(false)}
-        aria-label="Capture shortcut"
+        aria-label={label}
         className={`h-7 min-w-28 rounded-md px-3 text-[13px] font-medium tabular-nums shadow-sm ring-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
           recording
             ? "bg-blue-50 text-blue-600 ring-blue-400 dark:bg-blue-500/15 dark:text-blue-300"

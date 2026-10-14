@@ -2,7 +2,9 @@ mod capture;
 mod commands;
 mod controller;
 mod display;
+mod editor;
 mod error;
+mod export;
 mod feedback;
 mod geometry;
 mod ocr;
@@ -11,6 +13,7 @@ mod permissions;
 mod settings;
 mod shortcuts;
 mod tray;
+mod wallpapers;
 mod workflow;
 
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -21,7 +24,10 @@ use tauri_plugin_autostart::{MacosLauncher, ManagerExt};
 use tauri_plugin_global_shortcut::ShortcutState;
 
 use controller::CaptureController;
+use editor::EditorState;
+use export::LastSave;
 use settings::SettingsState;
+use wallpapers::WallpaperState;
 
 pub const SETTINGS_LABEL: &str = "settings";
 const AUTOSTART_ARG: &str = "--autostart";
@@ -49,14 +55,17 @@ pub fn run() {
         )
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
-                .with_handler(|app, _shortcut, event| {
+                .with_handler(|app, shortcut, event| {
                     if event.state != ShortcutState::Pressed
                         || app.state::<ShortcutPaused>().0.load(Ordering::SeqCst)
                     {
                         return;
                     }
+                    let Some(mode) = shortcuts::mode_for(app, shortcut) else {
+                        return;
+                    };
                     let handle = app.clone();
-                    let _ = app.run_on_main_thread(move || controller::on_hotkey(&handle));
+                    let _ = app.run_on_main_thread(move || controller::on_hotkey(&handle, mode));
                 })
                 .build(),
         )
@@ -67,9 +76,14 @@ pub fn run() {
             Some(vec![AUTOSTART_ARG]),
         ))
         .plugin(tauri_plugin_opener::init())
+        // Used from Rust only (save panel, folder picker); the pages get no dialog permissions.
+        .plugin(tauri_plugin_dialog::init())
         .manage(CaptureController::default())
         .manage(SettingsState::default())
         .manage(ShortcutPaused::default())
+        .manage(EditorState::default())
+        .manage(LastSave::default())
+        .manage(WallpaperState::default())
         .invoke_handler(tauri::generate_handler![
             commands::overlay_session,
             commands::overlay_ready,
@@ -79,6 +93,9 @@ pub fn run() {
             commands::get_settings,
             commands::update_settings,
             commands::set_shortcut,
+            commands::set_screenshot_shortcut,
+            commands::choose_save_folder,
+            commands::reset_save_folder,
             commands::set_shortcut_paused,
             commands::get_launch_at_login,
             commands::set_launch_at_login,
@@ -87,6 +104,17 @@ pub fn run() {
             commands::ocr_language_status,
             commands::open_permission_settings,
             commands::restart_app,
+            commands::editor_image,
+            commands::editor_ready,
+            commands::copy_image,
+            commands::save_image,
+            commands::quick_save,
+            commands::reveal_last_save,
+            commands::start_drag,
+            commands::list_system_wallpapers,
+            commands::wallpaper_image,
+            commands::get_editor_style,
+            commands::set_editor_style,
         ])
         .setup(|app| {
             #[cfg(target_os = "macos")]
@@ -95,7 +123,15 @@ pub fn run() {
             let handle = app.handle().clone();
             let mut settings = settings::load(&handle);
             let shortcut_ok = register_initial_shortcut(&handle, &mut settings);
+            register_screenshot_shortcut(&handle, &mut settings);
             tray::create(&handle)?;
+            export::clear_drag_dir(&handle);
+            // Load the editor page in the background so the first screenshot opens instantly.
+            let preload_handle = handle.clone();
+            tauri::async_runtime::spawn(async move {
+                tokio::time::sleep(Duration::from_millis(800)).await;
+                editor::preload(&preload_handle);
+            });
 
             let autostarted = std::env::args().any(|a| a == AUTOSTART_ARG);
             if !shortcut_ok {
@@ -117,6 +153,10 @@ pub fn run() {
             }
             WindowEvent::Focused(false) if overlay::is_overlay(window.label()) => {
                 cancel_if_overlays_lost_focus(window.app_handle().clone());
+            }
+            WindowEvent::CloseRequested { api, .. } if window.label() == editor::EDITOR_LABEL => {
+                api.prevent_close();
+                editor::close(window.app_handle(), window);
             }
             _ => {}
         })
@@ -149,6 +189,27 @@ fn register_initial_shortcut(app: &AppHandle, settings: &mut settings::Settings)
         return true;
     }
     false
+}
+
+/// Registers the screenshot shortcut, falling back to the default. Failure is not fatal: the tray
+/// item still works and Settings shows a warning.
+fn register_screenshot_shortcut(app: &AppHandle, settings: &mut settings::Settings) {
+    let saved = settings.screenshot_shortcut.clone();
+    if !shortcuts::same(&saved, &settings.shortcut) && shortcuts::replace(app, None, &saved).is_ok()
+    {
+        return;
+    }
+    let default = settings::DEFAULT_SCREENSHOT_SHORTCUT;
+    if saved != default
+        && !shortcuts::same(default, &settings.shortcut)
+        && shortcuts::replace(app, None, default).is_ok()
+    {
+        log::warn!("saved screenshot shortcut unavailable; using the default");
+        settings.screenshot_shortcut = default.to_string();
+        let _ = settings::save(app, settings.clone());
+    } else {
+        log::warn!("screenshot shortcut unavailable");
+    }
 }
 
 /// Cancels the selection when focus leaves every overlay (Cmd-Tab, screen lock, …). The delay

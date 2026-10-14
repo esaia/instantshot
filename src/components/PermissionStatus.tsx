@@ -37,7 +37,7 @@ export function PermissionStatus() {
       </div>
       <p className="text-[12px] leading-[18px] text-neutral-600 dark:text-neutral-300">
         TextPicker needs to read the screen region you select. The image is processed on this Mac
-        and never stored or uploaded. Enable TextPicker under{" "}
+        and never uploaded. Enable TextPicker under{" "}
         <span className="font-medium">
           Privacy &amp; Security › Screen &amp; System Audio Recording
         </span>

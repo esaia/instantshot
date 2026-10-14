@@ -5,7 +5,10 @@ use tauri::tray::TrayIconBuilder;
 use tauri::{AppHandle, Manager, Wry};
 use tauri_plugin_autostart::ManagerExt;
 
+use crate::workflow::CaptureMode;
+
 const CAPTURE: &str = "capture";
+const CAPTURE_SCREENSHOT: &str = "capture-screenshot";
 const SETTINGS: &str = "settings";
 const LOGIN: &str = "launch-at-login";
 const QUIT: &str = "quit";
@@ -29,6 +32,13 @@ pub fn create(app: &AppHandle) -> tauri::Result<()> {
             &MenuItem::with_id(app, "title", "TextPicker", false, None::<&str>)?,
             &PredefinedMenuItem::separator(app)?,
             &MenuItem::with_id(app, CAPTURE, "Capture Text", true, None::<&str>)?,
+            &MenuItem::with_id(
+                app,
+                CAPTURE_SCREENSHOT,
+                "Capture Screenshot",
+                true,
+                None::<&str>,
+            )?,
             &MenuItem::with_id(app, SETTINGS, "Settings…", true, None::<&str>)?,
             &PredefinedMenuItem::separator(app)?,
             &login,
@@ -43,7 +53,8 @@ pub fn create(app: &AppHandle) -> tauri::Result<()> {
         .menu(&menu)
         .show_menu_on_left_click(true)
         .on_menu_event(|app, event| match event.id().as_ref() {
-            CAPTURE => crate::controller::on_hotkey(app),
+            CAPTURE => crate::controller::on_hotkey(app, CaptureMode::Text),
+            CAPTURE_SCREENSHOT => crate::controller::on_hotkey(app, CaptureMode::Screenshot),
             SETTINGS => crate::show_settings(app),
             LOGIN => {
                 let enable = !app.autolaunch().is_enabled().unwrap_or(false);

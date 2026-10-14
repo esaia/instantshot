@@ -1,9 +1,11 @@
-//! Orchestrates one capture session: shortcut → overlays → region capture → OCR → clipboard.
+//! Orchestrates one capture session: shortcut → overlays → region capture → then either
+//! OCR → clipboard (text mode) or the screenshot editor (screenshot mode).
 //!
 //! Invariants:
 //! - At most one session at a time (enforced by [`Workflow`]).
-//! - Every path ends in [`CaptureController::end`], which hides overlays, restores focus and
-//!   resets the state machine, so a failure can never leave input-blocking windows behind.
+//! - Every path ends in [`end`], which hides overlays, restores focus (unless the editor took
+//!   over) and resets the state machine, so a failure can never leave input-blocking windows
+//!   behind.
 //! - Overlays that fail to report ready within [`READY_TIMEOUT`] abort the session.
 
 use std::sync::Mutex;
@@ -15,12 +17,25 @@ use tauri_plugin_clipboard_manager::ClipboardExt;
 use crate::display::{self, Display};
 use crate::error::CaptureError;
 use crate::geometry::Rect;
-use crate::workflow::{HotkeyAction, Outcome, Phase, Workflow};
-use crate::{capture, feedback, ocr, overlay, permissions, settings};
+use crate::workflow::{CaptureMode, HotkeyAction, Outcome, Phase, Workflow};
+use crate::{capture, editor, feedback, ocr, overlay, permissions, settings};
 
 const READY_TIMEOUT: Duration = Duration::from_millis(2500);
 /// Event telling already-loaded overlay pages that a new session started.
 pub const EVENT_BEGIN: &str = "overlay:begin";
+/// Event telling overlays the capture mode changed during selection.
+const EVENT_MODE: &str = "overlay:mode";
+
+/// What a screenshot selection should do once confirmed in the overlay.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum FinishAction {
+    /// Open the editor (also the default when no action is given).
+    #[default]
+    Edit,
+    /// Copy the captured image without opening the editor.
+    Copy,
+}
 
 #[derive(Default)]
 pub struct CaptureController {
@@ -42,18 +57,28 @@ impl CaptureController {
 
     /// Current session id if overlays should be showing.
     pub fn selecting_session(&self) -> Option<u64> {
+        self.selecting().map(|(session, _)| session)
+    }
+
+    /// Current session and its capture mode while selecting.
+    pub fn selecting(&self) -> Option<(u64, CaptureMode)> {
         let s = self.lock();
-        (s.workflow.phase() == Phase::SelectingRegion).then(|| s.workflow.session())
+        (s.workflow.phase() == Phase::SelectingRegion)
+            .then(|| (s.workflow.session(), s.workflow.mode()))
     }
 }
 
 /// Global shortcut / tray entry point. Runs on the main thread.
-pub fn on_hotkey(app: &AppHandle) {
+pub fn on_hotkey(app: &AppHandle, mode: CaptureMode) {
     let controller = app.state::<CaptureController>();
-    let action = controller.lock().workflow.on_hotkey();
+    let action = controller.lock().workflow.on_hotkey(mode);
     match action {
         HotkeyAction::Start(session) => start(app, session),
         HotkeyAction::Cancel(session) => cancel(app, session),
+        HotkeyAction::Switched => {
+            log::debug!("capture mode switched to {mode:?}");
+            let _ = app.emit(EVENT_MODE, mode);
+        }
         HotkeyAction::Ignore => log::debug!("capture already in progress; shortcut ignored"),
     }
 }
@@ -65,6 +90,7 @@ fn start(app: &AppHandle, session: u64) {
         return;
     }
     overlay::save_focus();
+    editor::stash_for_capture(app);
 
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
@@ -146,12 +172,20 @@ pub fn cancel(app: &AppHandle, session: u64) {
         .cancel(session);
     if cancelled {
         overlay::hide_all(app);
+        editor::unstash_after_capture(app);
     }
 }
 
-/// Selection finished on `window`. Performs capture → OCR → clipboard off the main thread.
-pub async fn finish_selection(app: AppHandle, window_label: String, session: u64, rect: Rect) {
-    let display = {
+/// Selection finished on `window`. Captures the region off the main thread, then hands it to the
+/// text or screenshot flow.
+pub async fn finish_selection(
+    app: AppHandle,
+    window_label: String,
+    session: u64,
+    rect: Rect,
+    action: FinishAction,
+) {
+    let (display, mode) = {
         let controller = app.state::<CaptureController>();
         let mut s = controller.lock();
         let display = s
@@ -162,16 +196,25 @@ pub async fn finish_selection(app: AppHandle, window_label: String, session: u64
         if display.is_none() || !s.workflow.begin_capture(session) {
             return;
         }
-        display.expect("checked above")
+        (display.expect("checked above"), s.workflow.mode())
     };
-    overlay::hide_all(&app);
+    overlay::hide_overlays(&app);
 
     if !rect.normalized().is_selection() {
         end(&app, session, Outcome::Cancelled);
         return;
     }
 
-    let options = settings::ocr_options(&app);
+    let outcome = match mode {
+        CaptureMode::Text => text_flow(&app, session, display, rect).await,
+        CaptureMode::Screenshot => screenshot_flow(&app, session, display, rect, action).await,
+    };
+    end(&app, session, outcome);
+}
+
+/// Capture → OCR → clipboard.
+async fn text_flow(app: &AppHandle, session: u64, display: Display, rect: Rect) -> Outcome {
+    let options = settings::ocr_options(app);
     let worker_app = app.clone();
     let result = tauri::async_runtime::spawn_blocking(move || {
         let started = std::time::Instant::now();
@@ -194,16 +237,61 @@ pub async fn finish_selection(app: AppHandle, window_label: String, session: u64
     })
     .await;
 
-    let outcome = match result {
+    match result {
         Ok(Ok(text)) if text.trim().is_empty() => Outcome::NoTextFound,
-        Ok(Ok(text)) => copy(&app, session, text),
+        Ok(Ok(text)) => copy(app, session, text),
         Ok(Err(outcome)) => outcome,
         Err(err) => {
             log::error!("capture worker failed: {err}");
             Outcome::CaptureFailed("Something went wrong".into())
         }
+    }
+}
+
+/// Capture → screenshot editor, or straight to the clipboard.
+async fn screenshot_flow(
+    app: &AppHandle,
+    session: u64,
+    display: Display,
+    rect: Rect,
+    action: FinishAction,
+) -> Outcome {
+    let worker_display = display.clone();
+    let result = tauri::async_runtime::spawn_blocking(move || {
+        let frame = capture::capture_region(&worker_display, rect).map_err(capture_outcome)?;
+        Ok::<_, Outcome>(editor::EditorImage::from_frame(
+            &frame,
+            worker_display.scale,
+        ))
+    })
+    .await;
+
+    let image = match result {
+        Ok(Ok(image)) => image,
+        Ok(Err(outcome)) => return outcome,
+        Err(err) => {
+            log::error!("capture worker failed: {err}");
+            return Outcome::CaptureFailed("Something went wrong".into());
+        }
     };
-    end(&app, session, outcome);
+    if action == FinishAction::Copy {
+        return copy_image(app, session, image);
+    }
+    if !app
+        .state::<CaptureController>()
+        .lock()
+        .workflow
+        .begin_editor(session)
+    {
+        return Outcome::Cancelled;
+    }
+    match editor::open(app, image, &display) {
+        Ok(()) => Outcome::EditorOpened,
+        Err(err) => {
+            log::error!("opening the editor failed: {err}");
+            Outcome::CaptureFailed("Couldn't open the editor".into())
+        }
+    }
 }
 
 fn copy(app: &AppHandle, session: u64, text: String) -> Outcome {
@@ -220,6 +308,25 @@ fn copy(app: &AppHandle, session: u64, text: String) -> Outcome {
         Ok(()) => Outcome::Completed { chars },
         Err(err) => {
             log::error!("clipboard write failed: {err}");
+            Outcome::ClipboardFailed
+        }
+    }
+}
+
+fn copy_image(app: &AppHandle, session: u64, image: editor::EditorImage) -> Outcome {
+    if !app
+        .state::<CaptureController>()
+        .lock()
+        .workflow
+        .begin_image_copy(session)
+    {
+        return Outcome::Cancelled;
+    }
+    let image = tauri::image::Image::new_owned(image.rgba, image.width, image.height);
+    match app.clipboard().write_image(&image) {
+        Ok(()) => Outcome::ImageCopied,
+        Err(err) => {
+            log::error!("clipboard image write failed: {err}");
             Outcome::ClipboardFailed
         }
     }
@@ -243,7 +350,11 @@ fn end(app: &AppHandle, session: u64, outcome: Outcome) {
         .lock()
         .workflow
         .finish(session);
-    overlay::hide_all(app);
+    overlay::hide_overlays(app);
+    if !outcome.keeps_focus() {
+        overlay::restore_focus(app);
+        editor::unstash_after_capture(app);
+    }
     if !ended {
         return;
     }

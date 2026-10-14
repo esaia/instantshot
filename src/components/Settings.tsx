@@ -11,13 +11,23 @@ const GITHUB_URL = "https://github.com/esaia/textpicker";
 const WEBSITE_URL = "https://textpicker.app";
 
 export function Settings() {
-  const { settings, info, launchAtLogin, error, update, setShortcut, setLaunchAtLogin } =
-    useSettings();
+  const {
+    settings,
+    info,
+    launchAtLogin,
+    error,
+    update,
+    setShortcut,
+    setScreenshotShortcut,
+    changeSaveFolder,
+    setLaunchAtLogin,
+  } = useSettings();
   const languages = useLanguageStatus();
 
   if (!settings || !info) return null;
   const isMac = info.platform === "macos";
   const shortcutLabel = formatShortcut(settings.shortcut, info.platform);
+  const screenshotLabel = formatShortcut(settings.screenshotShortcut, info.platform);
 
   return (
     <main className="mx-auto max-w-xl space-y-6 px-5 py-6">
@@ -26,8 +36,8 @@ export function Settings() {
         <div>
           <h1 className="text-[15px] font-semibold leading-5">TextPicker</h1>
           <p className="text-[12px] text-neutral-500 dark:text-neutral-400">
-            Press <kbd className="font-sans font-medium">{shortcutLabel}</kbd>, drag over any text,
-            then paste.
+            Press <kbd className="font-sans font-medium">{shortcutLabel}</kbd> to copy text, or{" "}
+            <kbd className="font-sans font-medium">{screenshotLabel}</kbd> for a screenshot.
           </p>
         </div>
       </header>
@@ -40,6 +50,16 @@ export function Settings() {
           The capture shortcut couldn’t be registered, probably because another app uses it. Choose
           a different shortcut below. You can still capture from the {isMac ? "menu bar" : "tray"}{" "}
           icon.
+        </p>
+      )}
+
+      {info.shortcutRegistered && !info.screenshotShortcutRegistered && (
+        <p
+          role="alert"
+          className="rounded-lg bg-amber-50 px-3 py-2 text-[12px] text-amber-800 dark:bg-amber-500/10 dark:text-amber-200"
+        >
+          The screenshot shortcut couldn’t be registered, probably because another app uses it.
+          Choose a different one below.
         </p>
       )}
 
@@ -59,20 +79,44 @@ export function Settings() {
       )}
 
       <Section title="Capture">
-        <Row label="Capture shortcut" hint="Works anywhere, even when this window is closed.">
+        <Row label="Capture text" hint="Recognizes text in a region and copies it.">
           <ShortcutInput
             value={settings.shortcut}
             platform={info.platform}
             onChange={setShortcut}
+            label="Capture text shortcut"
+          />
+          <ResetButton
+            disabled={settings.shortcut === info.defaultShortcut}
+            title={formatShortcut(info.defaultShortcut, info.platform)}
+            onClick={() => void setShortcut(info.defaultShortcut)}
           />
         </Row>
-        <Row label="Reset to default" hint={formatShortcut(info.defaultShortcut, info.platform)}>
-          <Button
-            disabled={settings.shortcut === info.defaultShortcut}
-            onClick={() => void setShortcut(info.defaultShortcut)}
-          >
-            Reset
-          </Button>
+        <Row label="Capture screenshot" hint="Opens the region in the screenshot editor.">
+          <ShortcutInput
+            value={settings.screenshotShortcut}
+            platform={info.platform}
+            onChange={setScreenshotShortcut}
+            label="Capture screenshot shortcut"
+          />
+          <ResetButton
+            disabled={settings.screenshotShortcut === info.defaultScreenshotShortcut}
+            title={formatShortcut(info.defaultScreenshotShortcut, info.platform)}
+            onClick={() => void setScreenshotShortcut(info.defaultScreenshotShortcut)}
+          />
+        </Row>
+        <Row label="Shortcuts work anywhere" hint="Even when this window is closed." />
+      </Section>
+
+      <Section title="Screenshots">
+        <Row
+          label="Quick save folder"
+          hint={<span className="break-all">{info.saveFolder ?? "Desktop"}</span>}
+        >
+          {settings.saveFolder !== null && (
+            <Button onClick={() => void changeSaveFolder(true)}>Use Desktop</Button>
+          )}
+          <Button onClick={() => void changeSaveFolder(false)}>Choose…</Button>
         </Row>
       </Section>
 
@@ -144,7 +188,7 @@ export function Settings() {
         </Row>
         <Row
           label="Privacy"
-          hint="Text is recognized on this device. Nothing is uploaded or stored."
+          hint="Everything happens on this device. Nothing is uploaded, and screenshots are only saved when you save them."
         />
         <Row label="Links">
           <Button onClick={() => openExternal(WEBSITE_URL)}>Website</Button>
@@ -152,6 +196,38 @@ export function Settings() {
         </Row>
       </Section>
     </main>
+  );
+}
+
+function ResetButton({
+  disabled,
+  title,
+  onClick,
+}: {
+  disabled: boolean;
+  title: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      title={`Reset to ${title}`}
+      aria-label={`Reset to ${title}`}
+      onClick={onClick}
+      className="flex size-7 items-center justify-center rounded-md text-neutral-500 hover:bg-black/5 disabled:opacity-30 disabled:hover:bg-transparent dark:text-neutral-400 dark:hover:bg-white/10"
+    >
+      <svg viewBox="0 0 16 16" className="size-3.5" aria-hidden="true">
+        <path
+          d="M3 8a5 5 0 1 0 1.5-3.5M3 2.5v2.5h2.5"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    </button>
   );
 }
 
@@ -204,23 +280,20 @@ function displayNames(tags: string[]): string[] {
 }
 
 function AppIcon() {
+  // Brand mark: a guitar pick ("Picker") with a text cursor.
   return (
-    <div className="grid size-10 place-items-center rounded-[10px] bg-gradient-to-br from-blue-500 to-indigo-600 shadow-sm">
-      <svg viewBox="0 0 24 24" className="size-6 text-white" aria-hidden="true">
-        <path
-          d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.8"
-          strokeLinecap="round"
-        />
-        <path
-          d="M8.5 8.5h7M12 8.5v7.5"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-        />
-      </svg>
-    </div>
+    <svg viewBox="0 0 64 64" className="size-10 shrink-0" aria-hidden="true">
+      <path
+        d="M32 59.5c-1.4 0-2.6-.7-3.5-1.8C19.6 47.6 6 32.4 6 20.2 6 10.3 17 5 32 5s26 5.3 26 15.2c0 12.2-13.6 27.4-22.5 37.5-.9 1.1-2.1 1.8-3.5 1.8Z"
+        fill="#ade4fc"
+      />
+      <path
+        d="M26.5 17h11M26.5 39h11M32 17v22"
+        fill="none"
+        stroke="#0f1217"
+        strokeWidth="4.2"
+        strokeLinecap="round"
+      />
+    </svg>
   );
 }

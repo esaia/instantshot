@@ -7,6 +7,9 @@
 use tauri::AppHandle;
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut};
 
+use crate::settings;
+use crate::workflow::CaptureMode;
+
 /// Parses and validates a shortcut string such as `Super+Shift+Digit2`.
 pub fn parse(accelerator: &str) -> Result<Shortcut, String> {
     let shortcut: Shortcut = accelerator
@@ -48,6 +51,41 @@ fn is_reserved(shortcut: &Shortcut) -> bool {
     }
 }
 
+/// Whether two accelerators describe the same key combination.
+pub fn same(a: &str, b: &str) -> bool {
+    match (a.parse::<Shortcut>(), b.parse::<Shortcut>()) {
+        (Ok(a), Ok(b)) => a.id() == b.id(),
+        _ => false,
+    }
+}
+
+/// Which capture a pressed global shortcut belongs to.
+pub fn mode_for(app: &AppHandle, pressed: &Shortcut) -> Option<CaptureMode> {
+    let s = settings::get(app);
+    let matches = |accelerator: &str| {
+        accelerator
+            .parse::<Shortcut>()
+            .is_ok_and(|s| s.id() == pressed.id())
+    };
+    if matches(&s.shortcut) {
+        Some(CaptureMode::Text)
+    } else if matches(&s.screenshot_shortcut) {
+        Some(CaptureMode::Screenshot)
+    } else {
+        None
+    }
+}
+
+/// Rejects `accelerator` if the other capture already uses it. Checked before registering,
+/// which would otherwise fail with a misleading "in use by another app".
+pub fn ensure_distinct(accelerator: &str, other: &str, other_name: &str) -> Result<(), String> {
+    if same(accelerator, other) {
+        Err(format!("Already used for {other_name}"))
+    } else {
+        Ok(())
+    }
+}
+
 pub fn is_registered(app: &AppHandle, accelerator: &str) -> bool {
     accelerator
         .parse::<Shortcut>()
@@ -82,6 +120,26 @@ mod tests {
     #[test]
     fn default_shortcut_is_valid() {
         assert!(parse(crate::settings::DEFAULT_SHORTCUT).is_ok());
+    }
+
+    #[test]
+    fn default_shortcuts_are_valid_and_distinct() {
+        assert!(parse(crate::settings::DEFAULT_SCREENSHOT_SHORTCUT).is_ok());
+        assert!(!same(
+            crate::settings::DEFAULT_SHORTCUT,
+            crate::settings::DEFAULT_SCREENSHOT_SHORTCUT
+        ));
+    }
+
+    #[test]
+    fn duplicates_are_rejected() {
+        assert!(same("Super+Shift+KeyT", "Shift+Super+KeyT"));
+        assert!(!same("Super+Shift+KeyT", "Super+KeyT"));
+        assert_eq!(
+            ensure_distinct("Alt+KeyX", "Alt+KeyX", "Capture Text"),
+            Err("Already used for Capture Text".to_string())
+        );
+        assert!(ensure_distinct("Alt+KeyX", "Alt+KeyY", "Capture Text").is_ok());
     }
 
     #[test]

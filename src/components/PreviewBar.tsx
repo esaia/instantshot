@@ -2,6 +2,7 @@ const VIEWS = [
   { label: "settings", name: "Settings", query: "" },
   { label: "overlay-preview", name: "Overlay", query: "?view=overlay" },
   { label: "toast", name: "Toast", query: "?view=toast" },
+  { label: "editor", name: "Editor", query: "?view=editor" },
 ];
 
 /** Shown only when the UI is opened in a regular browser instead of the Tauri app. */

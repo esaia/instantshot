@@ -4,6 +4,7 @@ import { CaptureOverlay } from "./components/CaptureOverlay";
 import { PreviewBar } from "./components/PreviewBar";
 import { Settings } from "./components/Settings";
 import { Toast } from "./components/Toast";
+import { Editor } from "./editor/Editor";
 import { isTauri, windowLabel } from "./lib/tauri";
 import "./styles/global.css";
 
@@ -13,11 +14,15 @@ const view = label.startsWith("overlay-") ? (
   <CaptureOverlay />
 ) : label === "toast" ? (
   <Toast />
+) : label === "editor" ? (
+  <Editor />
 ) : (
   <Settings />
 );
 const root = document.documentElement;
-root.classList.add(label === "settings" ? "settings" : "transparent");
+root.classList.add(
+  label === "settings" ? "settings" : label === "editor" ? "editor" : "transparent",
+);
 if (!isTauri) root.classList.add("preview");
 
 // biome-ignore lint/style/noNonNullAssertion: the root element is defined in index.html
