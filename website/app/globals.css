@@ -251,6 +251,9 @@ summary:focus-visible {
   width: var(--wrap);
   margin: 0 auto;
   padding: 130px 0 110px;
+  /* The demo's dim spreads across the viewport; stop it at the hero's bottom edge so the
+     sections below never fade. Sides and top stay open. */
+  clip-path: inset(-100vh -100vw 0 -100vw);
 }
 
 .hero-copy {
