@@ -3,9 +3,11 @@
 import { type ReactNode, useEffect, useRef, useState } from "react";
 
 /**
- * The hero demonstrates the screenshot feature on itself: after a pause, the page dims, a
- * crosshair selects the hero, "Edit" is clicked, and the captured hero becomes a framed
- * screenshot on a wallpaper (cycling backgrounds) before returning to normal.
+ * The hero demonstrates both features on itself, alternating:
+ * 1. Screenshot: the page dims, a crosshair selects the hero, "Edit" is clicked, and the
+ *    captured hero becomes a framed screenshot on cycling wallpapers.
+ * 2. Text: a crosshair selects the headline (the `.hc-target` element in the children), the
+ *    "Copied" HUD appears, and ⌘V pastes the headline into a search bar as plain text.
  *
  * The whole sequence is one CSS keyframe timeline (see "Hero capture animation" in
  * globals.css), so it plays without any JavaScript; script only measures the size label.
@@ -53,6 +55,28 @@ export function HeroCapture({ children }: { children: ReactNode }) {
           <span className="hc-bar-x">✕</span>
         </div>
         <span className="hc-toast">✓ Copied to clipboard</span>
+
+        <div className="hc-keys-text">
+          <kbd>⇧</kbd>
+          <kbd>⌘</kbd>
+          <kbd>2</kbd>
+        </div>
+        <span className="hc-copied">
+          <b>✓</b> Copied 39 characters
+        </span>
+        <div className="hc-paste">
+          <svg viewBox="0 0 24 24">
+            <circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" strokeWidth="2.2" />
+            <path d="m15.5 15.5 5 5" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+          </svg>
+          <span className="hc-paste-text">
+            <span className="hc-paste-empty">
+              <span>Search</span>
+            </span>
+            <span className="hc-paste-full">Snip anything. Copy any text on screen.</span>
+          </span>
+          <kbd className="hc-paste-kbd">⌘V</kbd>
+        </div>
         <svg className="hc-cross" viewBox="0 0 24 24">
           <path d="M12 2v20M2 12h20" />
         </svg>

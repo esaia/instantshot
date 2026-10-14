@@ -257,7 +257,7 @@ summary:focus-visible {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 28px 40px 32px;
+  padding: 36px 40px 40px;
   text-align: center;
 }
 
@@ -1219,18 +1219,18 @@ details p {
 /* ---------- Hero capture animation ---------- */
 
 /*
- * One 16s timeline, every element keyed to the same percentages:
- *   0–14%  idle (readable hero)
- *  14–20%  ⇧⌘1 keys, page dims, crosshair moves to the corner
- *  20–31%  drag: the selection grows over the hero
- *  31–41%  size label + Copy / Edit bar, cursor clicks Edit
- *  42–90%  framed on a wallpaper: tide → sunset → candy, "Copied" toast
- *  90–100% back to normal
+ * One 30s timeline with two demos, every element keyed to the same percentages:
+ *   0–50%   Screenshot (⇧⌘1): idle, dim, drag over the hero, Copy / Edit bar, click Edit,
+ *           framed on wallpapers (tide → sunset → candy), "Copied", back to normal.
+ *  50–100%  Text (⇧⌘2): idle, dim, drag over the headline, release → "Copied 39
+ *           characters", ⌘V pastes it into a search bar, back to normal.
  */
 .hc {
-  --hc-time: 16s;
+  --hc-time: 30s;
   position: relative;
   isolation: isolate;
+  /* A wide capture, like a real snip of the page. */
+  width: min(1100px, 100%);
 }
 
 .hc-shot,
@@ -1242,8 +1242,16 @@ details p {
 .hc-bar-edit,
 .hc-toast,
 .hc-cross,
-.hc-arrow {
+.hc-arrow,
+.hc-keys-text,
+.hc-copied,
+.hc-paste,
+.hc-paste-kbd,
+.hc-target::before,
+.hc-target::after {
   animation-duration: var(--hc-time);
+  /* Start partway into the idle pause, so the first run begins ~0.7s after load. */
+  animation-delay: -1.5s;
   animation-iteration-count: infinite;
   animation-fill-mode: both;
   animation-timing-function: linear;
@@ -1258,20 +1266,21 @@ details p {
 
 @keyframes hc-shot {
   0%,
-  41% {
+  20.5% {
     background-color: rgb(15 18 23 / 0);
     box-shadow: 0 0 0 0 rgb(0 0 0 / 0);
     animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
   }
-  45%,
-  89% {
+  22.5%,
+  44.5% {
     background-color: var(--night);
     box-shadow:
       0 0 0 1px rgb(255 255 255 / 0.06),
       0 40px 80px -24px rgb(0 0 0 / 0.75);
     animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
   }
-  94%,
+  47%,
+  50%,
   100% {
     background-color: rgb(15 18 23 / 0);
     box-shadow: 0 0 0 0 rgb(0 0 0 / 0);
@@ -1319,14 +1328,15 @@ details p {
 
 @keyframes hc-bg-tide {
   0%,
-  42% {
+  21% {
     opacity: 0;
   }
-  46%,
-  58% {
+  23%,
+  29% {
     opacity: 1;
   }
-  62%,
+  31%,
+  50%,
   100% {
     opacity: 0;
   }
@@ -1334,14 +1344,15 @@ details p {
 
 @keyframes hc-bg-sunset {
   0%,
-  58% {
+  29% {
     opacity: 0;
   }
-  62%,
-  73% {
+  31%,
+  36.5% {
     opacity: 1;
   }
-  77%,
+  38.5%,
+  50%,
   100% {
     opacity: 0;
   }
@@ -1349,14 +1360,15 @@ details p {
 
 @keyframes hc-bg-candy {
   0%,
-  73% {
+  36.5% {
     opacity: 0;
   }
-  77%,
-  89% {
+  38.5%,
+  44.5% {
     opacity: 1;
   }
-  94%,
+  47%,
+  50%,
   100% {
     opacity: 0;
   }
@@ -1384,7 +1396,7 @@ details p {
 /* The border stays invisible until the drag starts, so the zero-size selection isn't a dot. */
 @keyframes hc-hole {
   0%,
-  13.9% {
+  6% {
     width: 0;
     height: 0;
     opacity: 0;
@@ -1393,8 +1405,8 @@ details p {
       0 0 0 2px rgb(0 0 0 / 0),
       0 0 0 200vmax rgb(0 0 0 / 0.32);
   }
-  14%,
-  20% {
+  7%,
+  10% {
     width: 0;
     height: 0;
     opacity: 1;
@@ -1404,14 +1416,14 @@ details p {
       0 0 0 200vmax rgb(0 0 0 / 0.32);
     animation-timing-function: cubic-bezier(0.45, 0, 0.25, 1);
   }
-  21% {
+  10.5% {
     box-shadow:
       0 0 0 1px rgb(255 255 255 / 0.95),
       0 0 0 2px rgb(0 0 0 / 0.35),
       0 0 0 200vmax rgb(0 0 0 / 0.32);
   }
-  31%,
-  41% {
+  15.5%,
+  20.5% {
     width: calc(100% + 28px);
     height: calc(100% + 28px);
     opacity: 1;
@@ -1420,7 +1432,8 @@ details p {
       0 0 0 2px rgb(0 0 0 / 0.35),
       0 0 0 200vmax rgb(0 0 0 / 0.32);
   }
-  43%,
+  21.5%,
+  50%,
   100% {
     width: calc(100% + 28px);
     height: calc(100% + 28px);
@@ -1449,14 +1462,15 @@ details p {
 
 @keyframes hc-size {
   0%,
-  30% {
+  15% {
     opacity: 0;
   }
-  32%,
-  41% {
+  16%,
+  20.5% {
     opacity: 1;
   }
-  42%,
+  21%,
+  50%,
   100% {
     opacity: 0;
   }
@@ -1474,16 +1488,17 @@ details p {
 
 @keyframes hc-keys {
   0%,
-  13% {
+  6.5% {
     opacity: 0;
     translate: 0 8px;
   }
-  15%,
-  21% {
+  7.5%,
+  10.5% {
     opacity: 1;
     translate: 0 0;
   }
-  23%,
+  11.5%,
+  50%,
   100% {
     opacity: 0;
     translate: 0 0;
@@ -1529,16 +1544,17 @@ details p {
 
 @keyframes hc-bar {
   0%,
-  31% {
+  15.5% {
     opacity: 0;
     translate: 0 8px;
   }
-  33%,
-  41% {
+  16.5%,
+  20.5% {
     opacity: 1;
     translate: 0 0;
   }
-  43%,
+  21.5%,
+  50%,
   100% {
     opacity: 0;
     translate: 0 0;
@@ -1565,14 +1581,15 @@ details p {
 
 @keyframes hc-bar-edit {
   0%,
-  38% {
+  19% {
     background: rgb(255 255 255 / 0);
   }
-  39%,
-  41% {
+  19.5%,
+  20.5% {
     background: rgb(255 255 255 / 0.22);
   }
-  42%,
+  21%,
+  50%,
   100% {
     background: rgb(255 255 255 / 0);
   }
@@ -1586,7 +1603,7 @@ details p {
 .hc-toast {
   position: absolute;
   left: 50%;
-  top: calc(100% + 40px);
+  top: calc(100% + 54px);
   padding: 9px 18px;
   border-radius: 99px;
   background: rgb(23 23 23 / 0.95);
@@ -1600,16 +1617,17 @@ details p {
 
 @keyframes hc-toast {
   0%,
-  80% {
+  40% {
     opacity: 0;
     translate: 0 8px;
   }
-  82%,
-  89% {
+  41%,
+  44.5% {
     opacity: 1;
     translate: 0 0;
   }
-  92%,
+  46%,
+  50%,
   100% {
     opacity: 0;
     translate: 0 0;
@@ -1635,30 +1653,31 @@ details p {
 
 @keyframes hc-cross {
   0%,
-  14% {
+  7% {
     left: 70%;
     top: 75%;
     opacity: 0;
     animation-timing-function: cubic-bezier(0.45, 0, 0.25, 1);
   }
-  15% {
+  7.5% {
     left: 70%;
     top: 75%;
     opacity: 1;
     animation-timing-function: cubic-bezier(0.45, 0, 0.25, 1);
   }
-  20% {
+  10% {
     left: -14px;
     top: -14px;
     opacity: 1;
     animation-timing-function: cubic-bezier(0.45, 0, 0.25, 1);
   }
-  31% {
+  15.5% {
     left: calc(100% + 14px);
     top: calc(100% + 14px);
     opacity: 1;
   }
-  32%,
+  16%,
+  50%,
   100% {
     left: calc(100% + 14px);
     top: calc(100% + 14px);
@@ -1677,39 +1696,40 @@ details p {
 
 @keyframes hc-arrow {
   0%,
-  31% {
+  15.5% {
     left: calc(100% + 14px);
     top: calc(100% + 14px);
     opacity: 0;
     scale: 1;
   }
-  32% {
+  16% {
     left: calc(100% + 14px);
     top: calc(100% + 14px);
     opacity: 1;
     animation-timing-function: cubic-bezier(0.45, 0, 0.25, 1);
   }
-  37% {
+  18.5% {
     left: calc(50% + 40px);
-    top: calc(100% + 51px);
+    top: var(--hc-tap-y, calc(100% + 51px));
     opacity: 1;
     scale: 1;
   }
-  39% {
+  19.5% {
     left: calc(50% + 40px);
-    top: calc(100% + 51px);
+    top: var(--hc-tap-y, calc(100% + 51px));
     scale: 0.85;
   }
-  41% {
+  20.5% {
     left: calc(50% + 40px);
-    top: calc(100% + 51px);
+    top: var(--hc-tap-y, calc(100% + 51px));
     opacity: 1;
     scale: 1;
   }
-  44%,
+  22%,
+  50%,
   100% {
     left: calc(50% + 40px);
-    top: calc(100% + 51px);
+    top: var(--hc-tap-y, calc(100% + 51px));
     opacity: 0;
     scale: 1;
   }
@@ -1723,5 +1743,486 @@ details p {
 
   .hc-shot {
     animation: none;
+  }
+}
+
+/* ---------- Second demo: copy the headline's text (50–100%) ---------- */
+
+/* The headline hosts its own selection (::after) and crosshair (::before). */
+.hc-target {
+  position: relative;
+}
+
+.hc-target::after {
+  content: "";
+  position: absolute;
+  left: -18px;
+  top: -10px;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  animation-name: hc-t-hole;
+}
+
+@keyframes hc-t-hole {
+  0%,
+  54% {
+    width: 0;
+    height: 0;
+    opacity: 0;
+    box-shadow:
+      0 0 0 1px rgb(255 255 255 / 0),
+      0 0 0 2px rgb(0 0 0 / 0),
+      0 0 0 200vmax rgb(0 0 0 / 0.32);
+  }
+  55%,
+  58% {
+    width: 0;
+    height: 0;
+    opacity: 1;
+    box-shadow:
+      0 0 0 1px rgb(255 255 255 / 0),
+      0 0 0 2px rgb(0 0 0 / 0),
+      0 0 0 200vmax rgb(0 0 0 / 0.32);
+    animation-timing-function: cubic-bezier(0.45, 0, 0.25, 1);
+  }
+  58.6% {
+    box-shadow:
+      0 0 0 1px rgb(255 255 255 / 0.95),
+      0 0 0 2px rgb(0 0 0 / 0.35),
+      0 0 0 200vmax rgb(0 0 0 / 0.32);
+  }
+  64% {
+    width: calc(100% + 36px);
+    height: calc(100% + 24px);
+    opacity: 1;
+    box-shadow:
+      0 0 0 1px rgb(255 255 255 / 0.95),
+      0 0 0 2px rgb(0 0 0 / 0.35),
+      0 0 0 200vmax rgb(0 0 0 / 0.32);
+  }
+  /* Text mode copies on release: the overlay disappears immediately. */
+  65%,
+  100% {
+    width: calc(100% + 36px);
+    height: calc(100% + 24px);
+    opacity: 0;
+    box-shadow:
+      0 0 0 1px rgb(255 255 255 / 0.95),
+      0 0 0 2px rgb(0 0 0 / 0.35),
+      0 0 0 200vmax rgb(0 0 0 / 0.32);
+  }
+}
+
+.hc-target::before {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  width: 26px;
+  height: 26px;
+  margin: -13px 0 0 -13px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2v20M2 12h20' stroke='white' stroke-width='1.6'/%3E%3C/svg%3E")
+    center / contain no-repeat;
+  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.8));
+  pointer-events: none;
+  animation-name: hc-t-cross;
+}
+
+@keyframes hc-t-cross {
+  0%,
+  54% {
+    left: 70%;
+    top: 130%;
+    opacity: 0;
+    animation-timing-function: cubic-bezier(0.45, 0, 0.25, 1);
+  }
+  55% {
+    left: 70%;
+    top: 130%;
+    opacity: 1;
+    animation-timing-function: cubic-bezier(0.45, 0, 0.25, 1);
+  }
+  58% {
+    left: -18px;
+    top: -10px;
+    opacity: 1;
+    animation-timing-function: cubic-bezier(0.45, 0, 0.25, 1);
+  }
+  64% {
+    left: calc(100% + 18px);
+    top: calc(100% + 14px);
+    opacity: 1;
+  }
+  65%,
+  100% {
+    left: calc(100% + 18px);
+    top: calc(100% + 14px);
+    opacity: 0;
+  }
+}
+
+.hc-keys-text {
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 40px);
+  display: flex;
+  gap: 6px;
+  transform: translateX(-50%);
+  animation-name: hc-keys-text;
+}
+
+.hc-keys-text kbd {
+  display: grid;
+  place-items: center;
+  min-width: 40px;
+  height: 40px;
+  padding: 0 10px;
+  border-radius: 10px;
+  background: var(--panel-2);
+  box-shadow:
+    inset 0 -3px 0 rgb(255 255 255 / 0.06),
+    0 0 0 1px var(--line);
+  color: #fff;
+  font-family: inherit;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+@keyframes hc-keys-text {
+  0%,
+  53% {
+    opacity: 0;
+    translate: 0 8px;
+  }
+  54.5%,
+  59% {
+    opacity: 1;
+    translate: 0 0;
+  }
+  60.5%,
+  100% {
+    opacity: 0;
+    translate: 0 0;
+  }
+}
+
+/* The app's HUD after a text capture. */
+.hc-copied {
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 40px);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 18px;
+  border-radius: 99px;
+  background: rgb(23 23 23 / 0.95);
+  box-shadow: 0 0 0 1px rgb(255 255 255 / 0.08);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  transform: translateX(-50%);
+  animation-name: hc-copied;
+}
+
+.hc-copied b {
+  color: #34d399;
+}
+
+@keyframes hc-copied {
+  0%,
+  64.5% {
+    opacity: 0;
+    translate: 0 8px;
+  }
+  65.5%,
+  72% {
+    opacity: 1;
+    translate: 0 0;
+  }
+  73.5%,
+  100% {
+    opacity: 0;
+    translate: 0 0;
+  }
+}
+
+/* Then the text is pasted into a search bar, as plain text. */
+.hc-paste {
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 32px);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: min(560px, calc(100vw - 32px));
+  height: 52px;
+  padding: 0 10px 0 16px;
+  border-radius: 14px;
+  background: rgb(30 35 44 / 0.96);
+  box-shadow:
+    0 0 0 1px rgb(255 255 255 / 0.1),
+    0 20px 50px -16px rgb(0 0 0 / 0.8);
+  color: var(--text);
+  font-size: 16px;
+  transform: translateX(-50%);
+  animation-name: hc-paste;
+}
+
+.hc-paste svg {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  color: var(--muted);
+}
+
+.hc-paste-text {
+  position: relative;
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.hc-paste-text span {
+  color: var(--muted);
+}
+
+@keyframes hc-paste {
+  0%,
+  73.5% {
+    opacity: 0;
+    translate: 0 8px;
+  }
+  75%,
+  95% {
+    opacity: 1;
+    translate: 0 0;
+  }
+  98%,
+  100% {
+    opacity: 0;
+    translate: 0 0;
+  }
+}
+
+/* Placeholder until ⌘V, then the pasted text. */
+.hc-paste-text .hc-paste-empty,
+.hc-paste-text .hc-paste-full {
+  animation-duration: var(--hc-time);
+  animation-delay: -1.5s;
+  animation-iteration-count: infinite;
+  animation-fill-mode: both;
+  animation-timing-function: steps(1, end);
+}
+
+.hc-paste-text .hc-paste-empty {
+  position: absolute;
+  left: 0;
+  animation-name: hc-paste-empty;
+}
+
+.hc-paste-text .hc-paste-full {
+  color: var(--text);
+  animation-name: hc-paste-full;
+}
+
+@keyframes hc-paste-empty {
+  0%,
+  79% {
+    opacity: 1;
+  }
+  79.1%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes hc-paste-full {
+  0%,
+  79% {
+    opacity: 0;
+  }
+  79.1%,
+  100% {
+    opacity: 1;
+  }
+}
+
+.hc-paste-kbd {
+  flex: none;
+  padding: 3px 8px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  animation-name: hc-paste-kbd;
+}
+
+@keyframes hc-paste-kbd {
+  0%,
+  77.5% {
+    background: transparent;
+    color: var(--muted);
+    scale: 1;
+  }
+  78.5% {
+    background: var(--select);
+    color: #fff;
+    scale: 0.92;
+  }
+  80%,
+  100% {
+    background: transparent;
+    color: var(--muted);
+    scale: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hc-target::before,
+  .hc-target::after {
+    display: none;
+  }
+}
+
+/* ---------- Mobile ---------- */
+
+/* Nothing may scroll sideways (the hero wallpaper and dim reach past the edges on purpose). */
+html,
+body {
+  overflow-x: clip;
+}
+
+a,
+button,
+summary {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* viewport-fit=cover: keep the floating nav clear of notches and rounded corners. */
+.nav-wrap {
+  top: max(16px, env(safe-area-inset-top));
+  padding-inline: max(20px, env(safe-area-inset-left)) max(20px, env(safe-area-inset-right));
+}
+
+@media (max-width: 680px) {
+  .hero {
+    padding: 104px 0 88px;
+  }
+
+  .hero-copy {
+    padding: 24px 16px 28px;
+  }
+
+  .hero h1 {
+    font-size: clamp(36px, 11.5vw, 46px);
+  }
+
+  .hero .lede {
+    margin: 24px 0 32px;
+  }
+
+  /* Tighter wallpaper margin so the framed hero stays on screen. */
+  .hc-bgs {
+    inset: -14px -10px;
+    border-radius: 12px;
+  }
+
+  .hc-shot {
+    border-radius: 18px;
+  }
+
+  .hc-keys {
+    top: calc(100% + 28px);
+  }
+
+  .hc-bar {
+    top: calc(100% + 22px);
+  }
+
+  .hc-toast,
+  .hc-copied {
+    top: calc(100% + 30px);
+  }
+
+  .hc-keys-text {
+    top: calc(100% + 28px);
+  }
+
+  .hc-paste {
+    top: calc(100% + 22px);
+    height: 46px;
+    font-size: 14px;
+  }
+
+  .hc-arrow {
+    --hc-tap-y: calc(100% + 43px);
+  }
+
+  .steps {
+    margin-top: 40px;
+  }
+
+  .keys {
+    margin-bottom: 16px;
+  }
+
+  .places li {
+    padding: 18px 0;
+  }
+
+  summary {
+    padding: 18px 0;
+    font-size: 17px;
+  }
+
+  .maker {
+    padding: 24px 0 80px;
+  }
+
+  .maker-card {
+    padding: 32px 22px;
+    border-radius: 24px;
+  }
+
+  .maker-copy > p:not(.maker-label) {
+    font-size: 16px;
+  }
+
+  .footer {
+    padding-bottom: calc(32px + env(safe-area-inset-bottom));
+  }
+
+  /* The interactive desktop demo scales with its width; on phones its text would be a few
+     pixels tall, so the steps above carry the explanation instead. */
+  .try {
+    display: none;
+  }
+}
+
+/* Small phones: stack the download buttons full width. */
+@media (max-width: 420px) {
+  .hero-copy .downloads,
+  .closing .downloads {
+    flex-direction: column;
+    align-self: stretch;
+  }
+
+  .hero-copy .downloads .button,
+  .closing .downloads .button {
+    justify-content: center;
+  }
+
+  .nav-cta {
+    padding: 8px 12px;
+    font-size: 14px;
+  }
+
+  .brand {
+    font-size: 16px;
   }
 }

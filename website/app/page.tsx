@@ -126,7 +126,7 @@ export default function Home() {
           <HeroCapture>
             <div className="hero-copy">
               <p className="tag">For macOS and Windows</p>
-              <h1 id="hero-title">
+              <h1 id="hero-title" className="hc-target">
                 <span className="line">Snip anything.</span>
                 <span className="line">Copy any text</span>
                 <span className="line">
