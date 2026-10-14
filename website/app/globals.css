@@ -912,44 +912,6 @@ kbd {
   padding-top: 6px;
 }
 
-.privacy-grid {
-  display: grid;
-  grid-template-columns: 1.1fr 1fr;
-  gap: 64px;
-  margin-top: 40px;
-}
-
-.privacy-grid > p {
-  max-width: 30em;
-  color: var(--muted);
-  font-size: 19px;
-}
-
-.facts {
-  display: grid;
-  gap: 14px;
-  padding: 0;
-  list-style: none;
-}
-
-.facts li {
-  display: flex;
-  gap: 12px;
-  align-items: baseline;
-}
-
-/* A tiny selection box instead of a generic check mark. */
-.facts li::before {
-  content: "";
-  flex: none;
-  width: 12px;
-  height: 12px;
-  border-radius: 3px;
-  background: var(--select-soft);
-  box-shadow: inset 0 0 0 1.5px var(--select);
-  transform: translateY(1px);
-}
-
 .faq-list {
   max-width: 760px;
   margin-top: 40px;
@@ -1118,6 +1080,25 @@ details p {
   color: var(--text);
 }
 
+/* Inline links in running text (open source mentions, FAQ answers). */
+.fineprint a,
+.faq-list p a {
+  color: var(--accent-text);
+  text-decoration: underline;
+  text-decoration-color: rgb(139 224 255 / 0.4);
+  text-underline-offset: 3px;
+}
+
+.fineprint a:hover,
+.faq-list p a:hover {
+  text-decoration-color: currentColor;
+}
+
+.footer {
+  flex-wrap: wrap;
+  gap: 12px 24px;
+}
+
 /* ---------- Responsive ---------- */
 
 
@@ -1128,8 +1109,7 @@ details p {
   }
 
   .steps,
-  .split,
-  .privacy-grid {
+  .split {
     grid-template-columns: minmax(0, 1fr);
   }
 
@@ -1137,8 +1117,7 @@ details p {
     gap: 36px;
   }
 
-  .split,
-  .privacy-grid {
+  .split {
     gap: 32px;
   }
 
@@ -1177,8 +1156,7 @@ details p {
     padding: 80px 0;
   }
 
-  .lede,
-  .privacy-grid > p {
+  .lede {
     font-size: 17px;
   }
 
@@ -1217,6 +1195,84 @@ details p {
 .try {
   width: min(760px, 100%);
   margin: 72px auto 0;
+}
+
+/* ---------- Editor video and steps ---------- */
+
+.media-frame {
+  margin-top: 56px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--panel);
+  box-shadow:
+    0 1px 0 rgb(255 255 255 / 0.04) inset,
+    0 40px 80px -30px rgb(0 0 0 / 0.7);
+}
+
+.media-frame video {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1600 / 924;
+}
+
+.step-shots {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 28px;
+  margin-top: 40px;
+  padding: 0;
+  list-style: none;
+}
+
+.step-shot img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 4 / 3;
+  /* Whole screenshot, letterboxed on a dark field that matches the app's chrome. */
+  object-fit: contain;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #141414;
+}
+
+.step-shot h3 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.step-shot-n {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--select-soft);
+  color: var(--accent-text);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.step-shot p {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 16px;
+}
+
+@media (max-width: 860px) {
+  .step-shots {
+    grid-template-columns: 1fr;
+    gap: 36px;
+  }
+
+  .media-frame {
+    margin-top: 40px;
+    border-radius: 12px;
+  }
 }
 
 /* ---------- Hero capture animation ---------- */

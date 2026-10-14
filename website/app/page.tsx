@@ -1,4 +1,6 @@
+import type { ReactNode } from "react";
 import { DesktopDemo } from "./desktop-demo";
+import { EditorVideo } from "./editor-video";
 import { HeroCapture } from "./hero-capture";
 import { PickLogo } from "./logo";
 
@@ -46,6 +48,33 @@ const steps = [
   },
 ];
 
+const shots = [
+  {
+    src: "/media/step-select.jpg?v=2",
+    width: 1400,
+    height: 1084,
+    alt: "A selection over part of a page with its size, handles, and arrow, shape, color, Copy and Edit buttons below it",
+    title: "Select",
+    body: "Drag over anything, then adjust the edges. The screen freezes, so even a playing video holds still. Draw right away, copy, or press Edit.",
+  },
+  {
+    src: "/media/step-annotate.jpg?v=2",
+    width: 1400,
+    height: 988,
+    alt: "The TextPicker editor showing the screenshot on a soft wallpaper, with the wallpaper picker on the right",
+    title: "Make it beautiful",
+    body: "Drop it on a wallpaper, gradient or color. Add arrows, boxes, text and blur; every shape can be moved, resized and rotated.",
+  },
+  {
+    src: "/media/step-layout.jpg?v=2",
+    width: 754,
+    height: 760,
+    alt: "The Layout tab with window styles None, Light and Dark, and size presets from Auto to 4:5",
+    title: "Fit where it’s going",
+    body: "Add a window bar and pick a size: square for a post, 16:9 for slides, 9:16 for a story. Then press ⌘C.",
+  },
+];
+
 const places = [
   ["Video and recorded calls", "Subtitles, slides in a screen share, code in a tutorial."],
   ["Photos and screenshots", "A Wi-Fi password on a poster, an address in a picture."],
@@ -53,7 +82,17 @@ const places = [
   ["Apps and dialogs", "Error messages, labels and anything else you’d normally retype."],
 ];
 
-const faqs = [
+const faqs: { q: string; a: ReactNode }[] = [
+  {
+    q: "Is it really free?",
+    a: (
+      <>
+        Yes, completely. TextPicker is open source under the MIT license: no trial, no
+        subscription, no ads and no account. The whole app, including how it handles your screen,
+        is on <a href={GITHUB}>GitHub</a> for anyone to read, build or improve.
+      </>
+    ),
+  },
   {
     q: "Does my screen get uploaded anywhere?",
     a: "No. Text is recognized by your operating system’s built-in engine: Apple Vision on macOS and Windows OCR on Windows. Screenshots stay in memory until you copy or save them. There’s no account, no analytics and no network request.",
@@ -104,7 +143,6 @@ export default function Home() {
           </a>
           <div className="nav-links">
             <a href="#how">How it works</a>
-            <a href="#privacy">Privacy</a>
             <a href="#faq">FAQ</a>
           </div>
           <a className="nav-github" href={GITHUB} aria-label="TextPicker on GitHub">
@@ -125,7 +163,7 @@ export default function Home() {
         <section className="hero" aria-labelledby="hero-title">
           <HeroCapture>
             <div className="hero-copy">
-              <p className="tag">For macOS and Windows</p>
+              <p className="tag">Free &amp; open source · macOS and Windows</p>
               <h1 id="hero-title" className="hc-target">
                 <span className="line">Snip anything.</span>
                 <span className="line">Copy any text</span>
@@ -138,7 +176,10 @@ export default function Home() {
                 photos, scanned PDFs, any app. One shortcut each, all on your device.
               </p>
               <Downloads />
-              <p className="fineprint">Nothing is uploaded. Your screen never leaves your device.</p>
+              <p className="fineprint">
+                Free and <a href={GITHUB}>open source</a>. Nothing is uploaded; your screen never
+                leaves your device.
+              </p>
             </div>
           </HeroCapture>
         </section>
@@ -165,6 +206,35 @@ export default function Home() {
           </div>
         </section>
 
+        <section className="section" id="editor" aria-labelledby="editor-title">
+          <h2 id="editor-title">
+            From snip to <span className="hl">share-ready.</span>
+          </h2>
+          <p className="section-lede">
+            Press ⇧⌘1, mark it up and drop it on a wallpaper, all without opening another app.
+          </p>
+          <EditorVideo />
+          <ol className="step-shots">
+            {shots.map((s, i) => (
+              <li key={s.title} className="step-shot">
+                <img
+                  src={s.src}
+                  alt={s.alt}
+                  width={s.width}
+                  height={s.height}
+                  loading="lazy"
+                  decoding="async"
+                />
+                <h3>
+                  <span className="step-shot-n">{i + 1}</span>
+                  {s.title}
+                </h3>
+                <p>{s.body}</p>
+              </li>
+            ))}
+          </ol>
+        </section>
+
         <section className="section split" aria-labelledby="where-title">
           <div>
             <h2 id="where-title">
@@ -183,25 +253,6 @@ export default function Home() {
               </li>
             ))}
           </ul>
-        </section>
-
-        <section className="section privacy" id="privacy" aria-labelledby="privacy-title">
-          <h2 id="privacy-title">
-            Your screen <span className="hl">stays on your computer.</span>
-          </h2>
-          <div className="privacy-grid">
-            <p>
-              TextPicker reads only the area you select. Text is recognized by the engine that ships
-              with your operating system, and screenshots stay in memory until you copy or save
-              them.
-            </p>
-            <ul className="facts">
-              <li>No uploads and no cloud OCR</li>
-              <li>No account, analytics or tracking</li>
-              <li>Screenshots are saved only when you save them</li>
-              <li>Your clipboard is untouched if nothing is found</li>
-            </ul>
-          </div>
         </section>
 
         <section className="section faq" id="faq" aria-labelledby="faq-title">
@@ -234,12 +285,13 @@ export default function Home() {
                 always wished came with my computer.
               </p>
               <p>
-                TextPicker is small on purpose, and it runs entirely on your computer. If something
-                doesn’t work or you have an idea, tell me.
+                TextPicker is free, open source and small on purpose, and it runs entirely on your
+                computer. If something doesn’t work or you have an idea, open an issue or send a pull
+                request.
               </p>
               <div className="maker-links">
                 <a href={X_PROFILE}>Say hi on X</a>
-                <a href={GITHUB}>Follow along on GitHub</a>
+                <a href={GITHUB}>Star it on GitHub</a>
               </div>
             </div>
           </div>
@@ -250,6 +302,10 @@ export default function Home() {
             Your whole screen, <span className="hl">one shortcut away.</span>
           </h2>
           <Downloads />
+          <p className="fineprint">
+            Free and open source under the MIT license.{" "}
+            <a href={GITHUB}>View the code on GitHub</a>.
+          </p>
           <p className="fineprint">Requires macOS 14 or later (Apple Silicon or Intel), or Windows 10 or 11.</p>
         </section>
       </main>
@@ -259,6 +315,7 @@ export default function Home() {
           <PickLogo className="brand-mark" />
           TextPicker
         </a>
+        <span className="footer-note">Free and open source · MIT license</span>
         <a href={GITHUB}>Source on GitHub</a>
       </footer>
     </>

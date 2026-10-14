@@ -12,10 +12,10 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "TextPicker: snip anything, copy any text on screen",
   description:
-    "Take beautiful screenshots or copy text from anything on your screen: videos, photos, scanned PDFs, any app. One shortcut each, all on your device. For macOS and Windows.",
+    "Take beautiful screenshots or copy text from anything on your screen: videos, photos, scanned PDFs, any app. One shortcut each, all on your device. Free and open source, for macOS and Windows.",
   openGraph: {
     title: "TextPicker",
-    description: "Snip anything. Copy any text on screen.",
+    description: "Snip anything. Copy any text on screen. Free and open source.",
     type: "website",
   },
 };
