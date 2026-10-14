@@ -1,7 +1,7 @@
 import { type ReactNode, useState } from "react";
 import type { SystemWallpaper } from "../../lib/types";
-import { ASPECTS, LIMITS, type Section } from "../model/defaults";
-import type { Background, ChromeId, EditorStyle } from "../model/types";
+import { ASPECTS, clampCrop, LIMITS, type Section } from "../model/defaults";
+import type { Background, ChromeId, Crop, EditorStyle } from "../model/types";
 import { BackgroundPanel } from "./BackgroundPanel";
 import { PanelSection, Segmented, Slider } from "./controls";
 
@@ -197,6 +197,32 @@ export function Sidebar({
                   </button>
                 ))}
               </div>
+            </PanelSection>
+            <PanelSection title="Crop" onReset={() => onReset("crop")}>
+              {(
+                [
+                  ["top", "Top"],
+                  ["bottom", "Bottom"],
+                  ["left", "Left"],
+                  ["right", "Right"],
+                ] as const
+              ).map(([edge, label]) => (
+                <Slider
+                  key={edge}
+                  label={label}
+                  value={Math.round(style.crop[edge] * 100)}
+                  min={0}
+                  max={90}
+                  format={(v) => `${v}%`}
+                  onChange={(v) =>
+                    onStyle(
+                      { crop: clampCrop(style.crop, edge as keyof Crop, v / 100) },
+                      `crop.${edge}`,
+                    )
+                  }
+                  onCommit={onCommit}
+                />
+              ))}
             </PanelSection>
           </>
         )}

@@ -1,6 +1,6 @@
 import { GRADIENTS } from "../presets/gradients";
 import { WALLPAPERS } from "../wallpapers/presets";
-import type { AspectId, Background, ChromeId, EditorStyle } from "./types";
+import type { AspectId, Background, ChromeId, Crop, EditorStyle } from "./types";
 
 export const ASPECTS: { id: AspectId; label: string; name: string; ratio: number | null }[] = [
   { id: "auto", label: "Auto", name: "Fit", ratio: null },
@@ -13,6 +13,17 @@ export const ASPECTS: { id: AspectId; label: string; name: string; ratio: number
 ];
 
 const CHROMES: ChromeId[] = ["none", "light", "dark"];
+
+export const NO_CROP: Crop = { top: 0, bottom: 0, left: 0, right: 0 };
+/** Most that can be trimmed from both opposite edges together, so something always remains. */
+export const MAX_CROP = 0.9;
+
+/** Each edge's crop, kept within [0, 1] and so opposite edges leave at least 10%. */
+export function clampCrop(crop: Crop, edge: keyof Crop, value: number): Crop {
+  const opposite = { top: "bottom", bottom: "top", left: "right", right: "left" } as const;
+  const room = MAX_CROP - crop[opposite[edge]];
+  return { ...crop, [edge]: Math.min(Math.max(0, value), Math.max(0, room)) };
+}
 
 /** Slider ranges (logical px, opacity 0–1). */
 export const LIMITS = {
@@ -34,6 +45,7 @@ export const DEFAULT_STYLE: EditorStyle = {
   backgroundBlur: 0,
   chrome: "none",
   aspect: "auto",
+  crop: NO_CROP,
 };
 
 /** Style fields each sidebar section's "Reset" restores. */
@@ -42,6 +54,7 @@ export const SECTIONS = {
   frame: ["padding", "inset", "radius", "shadow", "shadowOpacity"],
   chrome: ["chrome"],
   aspect: ["aspect"],
+  crop: ["crop"],
 } as const satisfies Record<string, readonly (keyof EditorStyle)[]>;
 export type Section = keyof typeof SECTIONS;
 
@@ -99,5 +112,6 @@ export function parseStyle(value: unknown): EditorStyle {
     backgroundBlur: num(value.backgroundBlur, LIMITS.backgroundBlur, d.backgroundBlur),
     chrome: CHROMES.includes(value.chrome as ChromeId) ? (value.chrome as ChromeId) : d.chrome,
     aspect: ASPECTS.some((a) => a.id === value.aspect) ? (value.aspect as AspectId) : d.aspect,
+    crop: NO_CROP,
   };
 }

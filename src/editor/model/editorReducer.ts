@@ -1,4 +1,4 @@
-import { resetSection, type Section } from "./defaults";
+import { NO_CROP, resetSection, type Section } from "./defaults";
 import { apply, createHistory, type History, redo, seal, undo } from "./history";
 import type { Annotation, Doc, EditorStyle, Tool } from "./types";
 
@@ -69,7 +69,8 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
   switch (action.type) {
     case "load":
       return {
-        ...initialEditorState(action.style, action.annotations),
+        // A new screenshot starts uncropped.
+        ...initialEditorState({ ...action.style, crop: NO_CROP }, action.annotations),
         color: state.color,
         strokeWidth: state.strokeWidth,
       };

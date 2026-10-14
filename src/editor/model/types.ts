@@ -16,6 +16,14 @@ export type Background =
 export type AspectId = "auto" | "1:1" | "4:3" | "3:2" | "16:9" | "9:16" | "4:5";
 export type ChromeId = "none" | "light" | "dark";
 
+/** Share of the screenshot trimmed from each edge, 0–1. */
+export interface Crop {
+  top: number;
+  bottom: number;
+  left: number;
+  right: number;
+}
+
 export interface EditorStyle {
   background: Background;
   padding: number;
@@ -27,6 +35,8 @@ export interface EditorStyle {
   backgroundBlur: number;
   chrome: ChromeId;
   aspect: AspectId;
+  /** Per screenshot: never restored from storage, cleared for each new capture. */
+  crop: Crop;
 }
 
 export interface Point {

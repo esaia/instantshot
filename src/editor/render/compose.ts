@@ -2,7 +2,8 @@
 // what you see is exactly what gets copied or saved.
 
 import { handlesFor } from "../interaction/handles";
-import type { Annotation, Box, Doc, EditorStyle, SourceImage } from "../model/types";
+import { NO_CROP } from "../model/defaults";
+import type { Annotation, Box, Crop, Doc, EditorStyle, SourceImage } from "../model/types";
 import { gradientById } from "../presets/gradients";
 import { drawAnnotation } from "./annotations";
 import { boxBlur3 } from "./blur";
@@ -39,13 +40,17 @@ export interface RenderOptions {
   handleSize?: number;
 }
 
-/** The source region shown (the whole capture). */
-export function sourceCrop(source: SourceImage): Box {
-  return { x: 0, y: 0, w: source.width, h: source.height };
+/** The source region shown: the capture minus the cropped edges, whole source px. */
+export function sourceCrop(source: SourceImage, c: Crop = NO_CROP): Box {
+  const x = Math.round(source.width * c.left);
+  const y = Math.round(source.height * c.top);
+  const w = Math.max(1, Math.round(source.width * (1 - c.right)) - x);
+  const h = Math.max(1, Math.round(source.height * (1 - c.bottom)) - y);
+  return { x, y, w, h };
 }
 
 export function layoutFor(source: SourceImage, style: EditorStyle): { layout: Layout; crop: Box } {
-  const crop = sourceCrop(source);
+  const crop = sourceCrop(source, style.crop);
   return { crop, layout: computeLayout(crop.w / source.scale, crop.h / source.scale, style) };
 }
 

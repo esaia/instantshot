@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_STYLE, parseStyle, resetSection } from "./defaults";
+import { sourceCrop } from "../render/compose";
+import { clampCrop, DEFAULT_STYLE, NO_CROP, parseStyle, resetSection } from "./defaults";
+import type { SourceImage } from "./types";
 
 describe("parseStyle", () => {
   it("falls back to defaults for garbage", () => {
@@ -45,5 +47,29 @@ describe("resetSection", () => {
     expect(r.padding).toBe(DEFAULT_STYLE.padding);
     expect(r.shadow).toBe(DEFAULT_STYLE.shadow);
     expect(r.chrome).toBe("dark");
+  });
+});
+
+describe("crop", () => {
+  it("keeps opposite edges from meeting", () => {
+    const c = clampCrop({ ...NO_CROP, top: 0.6 }, "bottom", 0.5);
+    expect(c.bottom).toBeCloseTo(0.3);
+    expect(clampCrop(NO_CROP, "left", -1).left).toBe(0);
+  });
+
+  it("is never restored from storage", () => {
+    expect(
+      parseStyle({ ...DEFAULT_STYLE, crop: { top: 0.2, bottom: 0, left: 0, right: 0 } }).crop,
+    ).toEqual(NO_CROP);
+  });
+
+  it("trims the source region", () => {
+    const source = { width: 200, height: 100, scale: 2 } as SourceImage;
+    expect(sourceCrop(source, { top: 0.1, bottom: 0.2, left: 0.25, right: 0 })).toEqual({
+      x: 50,
+      y: 10,
+      w: 150,
+      h: 70,
+    });
   });
 });
