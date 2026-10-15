@@ -90,9 +90,9 @@ describe("rotation", () => {
 
   it("points the rotate handle at the pointer, snapping with Shift", () => {
     const right = resize(box, "rotate", { x: 100, y: 10 });
-    expect(right.type !== "arrow" && right.rotation).toBeCloseTo(Math.PI / 2);
+    expect("rotation" in right && right.rotation).toBeCloseTo(Math.PI / 2);
     const snapped = resize(box, "rotate", { x: 21, y: -100 }, true);
-    expect(snapped.type !== "arrow" && snapped.rotation).toBe(0);
+    expect("rotation" in snapped && snapped.rotation).toBe(0);
   });
 
   it("keeps the opposite corner in place when resizing a rotated box", () => {

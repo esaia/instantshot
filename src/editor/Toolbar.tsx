@@ -4,6 +4,12 @@ import type { Tool } from "./model/types";
 
 const TOOLS: { id: Tool; label: string; key: string; icon: ReactNode }[] = [
   { id: "select", label: "Select", key: "V", icon: <path d="M5 3.5 15 10l-4.6 1.1L8.2 15.6Z" /> },
+  {
+    id: "pen",
+    label: "Draw",
+    key: "D",
+    icon: <path d="M3.5 14.5c1.8-2.6 3.3-7 5.3-7 1.8 0 .6 5 2.6 5 1.6 0 2.5-3 5.1-6.5" />,
+  },
   { id: "arrow", label: "Arrow", key: "A", icon: <path d="M4.5 15.5 15 5M8.5 5H15v6.5" /> },
   {
     id: "rect",

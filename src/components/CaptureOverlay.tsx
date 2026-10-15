@@ -1,5 +1,6 @@
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
+import { translate } from "../editor/interaction/handles";
 import { decodeRawFrame } from "../editor/lib/rawFrame";
 import { INK_COLORS, STROKE_WIDTHS } from "../editor/model/editorReducer";
 import type { Annotation } from "../editor/model/types";
@@ -49,13 +50,6 @@ function shapeFrom(
   return { ...base, type: tool, x: r.x, y: r.y, w: r.width, h: r.height };
 }
 
-/** Moves a shape by (dx, dy). */
-function shifted(a: Annotation, dx: number, dy: number): Annotation {
-  return a.type === "arrow"
-    ? { ...a, from: { x: a.from.x + dx, y: a.from.y + dy }, to: { x: a.to.x + dx, y: a.to.y + dy } }
-    : { ...a, x: a.x + dx, y: a.y + dy };
-}
-
 /** Draws `shapes` clipped to `clip`, with CSS px mapped to `scale` device pixels. */
 function paintShapes(
   ctx: CanvasRenderingContext2D,
@@ -92,7 +86,7 @@ async function markupFor(
   action: FinishAction,
 ): Promise<Markup | undefined> {
   if (shapes.length === 0) return undefined;
-  const annotations = shapes.map((a) => shifted(a, -selection.x, -selection.y));
+  const annotations = shapes.map((a) => translate(a, -selection.x, -selection.y));
   if (action !== "copy") return { annotations };
   const scale = window.devicePixelRatio || 1;
   const canvas = document.createElement("canvas");

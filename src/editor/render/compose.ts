@@ -1,7 +1,7 @@
 // The one renderer: draws the whole composition for the on-screen preview and for export, so
 // what you see is exactly what gets copied or saved.
 
-import { handlesFor } from "../interaction/handles";
+import { bounds, handlesFor } from "../interaction/handles";
 import { NO_CROP } from "../model/defaults";
 import type { Annotation, Box, Crop, Doc, EditorStyle, SourceImage } from "../model/types";
 import { gradientById } from "../presets/gradients";
@@ -258,13 +258,16 @@ function drawSelection(
 ): void {
   ctx.save();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
-  const rotateOffset = a.type === "arrow" ? 0 : size * ROTATE_HANDLE_GAP * srcPerOut;
+  const rotateOffset =
+    a.type === "arrow" || a.type === "pen" ? 0 : size * ROTATE_HANDLE_GAP * srcPerOut;
   const handles = handlesFor(a, rotateOffset);
   if (a.type !== "arrow") {
-    const pad = (size / 2) * srcPerOut;
+    // A stroke's outline also clears its line width.
+    const pad = (size / 2) * srcPerOut + (a.type === "pen" ? a.width / 2 : 0);
+    const b = bounds(a);
     const outline = rotatedCorners(
-      { x: a.x - pad, y: a.y - pad, w: a.w + 2 * pad, h: a.h + 2 * pad },
-      a.rotation ?? 0,
+      { x: b.x - pad, y: b.y - pad, w: b.w + 2 * pad, h: b.h + 2 * pad },
+      a.type === "pen" ? 0 : (a.rotation ?? 0),
     ).map((p) => toOut(p.x, p.y));
     const path = () => {
       ctx.beginPath();
@@ -315,6 +318,10 @@ function drawSelection(
 /** Middle of a box's (rotated) top edge. */
 function topMid(a: Annotation): [number, number] {
   if (a.type === "arrow") return [a.to.x, a.to.y];
+  if (a.type === "pen") {
+    const b = bounds(a);
+    return [b.x + b.w / 2, b.y];
+  }
   const p = rotatePoint({ x: a.x + a.w / 2, y: a.y }, boxCenter(a), a.rotation ?? 0);
   return [p.x, p.y];
 }

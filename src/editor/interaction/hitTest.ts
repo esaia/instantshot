@@ -15,10 +15,16 @@ function hits(a: Annotation, world: Point, tol: number): boolean {
   const reach = tol + a.width / 2;
   // Boxes are tested in their own unrotated frame.
   const p =
-    a.type === "arrow" || !a.rotation ? world : rotatePoint(world, boxCenter(a), -a.rotation);
+    a.type === "arrow" || a.type === "pen" || !a.rotation
+      ? world
+      : rotatePoint(world, boxCenter(a), -a.rotation);
   switch (a.type) {
     case "arrow":
       return segmentDistance(p, a.from, a.to) <= reach;
+    case "pen":
+      if (a.points.length === 1)
+        return Math.hypot(p.x - a.points[0].x, p.y - a.points[0].y) <= reach;
+      return a.points.some((q, i) => i > 0 && segmentDistance(p, a.points[i - 1], q) <= reach);
     case "text":
     case "blur":
     case "pixelate":

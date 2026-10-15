@@ -1,4 +1,4 @@
-import type { Annotation } from "../model/types";
+import type { Annotation, Point } from "../model/types";
 import { context2d, makeCanvas } from "./canvas";
 import { arrowHead } from "./geometry";
 
@@ -19,6 +19,25 @@ export function measureText(text: string, size: number): { w: number; h: number 
   return { w: Math.ceil(w), h: Math.ceil(lines.length * size * LINE_HEIGHT) };
 }
 
+/** A smooth path through `points`: quadratic curves between the midpoints of each pair. */
+function tracePen(ctx: CanvasRenderingContext2D, points: Point[]): void {
+  ctx.beginPath();
+  if (points.length === 0) return;
+  ctx.moveTo(points[0].x, points[0].y);
+  if (points.length === 1) {
+    // A click leaves a dot (round caps on a zero-length line).
+    ctx.lineTo(points[0].x, points[0].y);
+    return;
+  }
+  for (let i = 1; i < points.length - 1; i++) {
+    const p = points[i];
+    const next = points[i + 1];
+    ctx.quadraticCurveTo(p.x, p.y, (p.x + next.x) / 2, (p.y + next.y) / 2);
+  }
+  const last = points[points.length - 1];
+  ctx.lineTo(last.x, last.y);
+}
+
 /** Draws a stroke/text annotation in source-px coordinates (redactions are drawn elsewhere). */
 export function drawAnnotation(ctx: CanvasRenderingContext2D, a: Annotation): void {
   ctx.save();
@@ -27,7 +46,7 @@ export function drawAnnotation(ctx: CanvasRenderingContext2D, a: Annotation): vo
   ctx.lineWidth = a.width;
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
-  if (a.type !== "arrow" && a.rotation) {
+  if (a.type !== "arrow" && a.type !== "pen" && a.rotation) {
     const cx = a.x + a.w / 2;
     const cy = a.y + a.h / 2;
     ctx.translate(cx, cy);
@@ -51,6 +70,10 @@ export function drawAnnotation(ctx: CanvasRenderingContext2D, a: Annotation): vo
       ctx.stroke();
       break;
     }
+    case "pen":
+      tracePen(ctx, a.points);
+      ctx.stroke();
+      break;
     case "rect":
       ctx.beginPath();
       ctx.roundRect(a.x, a.y, a.w, a.h, Math.min(a.width * 1.5, a.w / 2, a.h / 2));

@@ -64,6 +64,8 @@ interface Rotatable {
 }
 
 export type ArrowAnnotation = Base & { type: "arrow"; from: Point; to: Point };
+/** A freehand stroke through `points`. */
+export type PenAnnotation = Base & { type: "pen"; points: Point[] };
 export type BoxAnnotation = Base &
   Box &
   Rotatable & { type: "rect" | "ellipse" | "blur" | "pixelate" };
@@ -77,7 +79,7 @@ export type TextAnnotation = Base &
     /** Horizontal stretch of the glyphs (1 = natural width). */
     scaleX?: number;
   };
-export type Annotation = ArrowAnnotation | BoxAnnotation | TextAnnotation;
+export type Annotation = ArrowAnnotation | PenAnnotation | BoxAnnotation | TextAnnotation;
 export type AnnotationType = Annotation["type"];
 
 export type Tool = "select" | AnnotationType;

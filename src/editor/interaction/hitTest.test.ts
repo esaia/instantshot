@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Annotation } from "../model/types";
 import { type Mapping, sourceToView, viewToSource } from "./coords";
-import { resize, translate } from "./handles";
+import { bounds, handlesFor, resize, translate } from "./handles";
 import { handleAt, hitTest, segmentDistance } from "./hitTest";
 
 const base = { color: "#f00", width: 4 };
@@ -14,6 +14,16 @@ const arrow: Annotation = {
 };
 const rect: Annotation = { ...base, id: "r", type: "rect", x: 200, y: 200, w: 100, h: 100 };
 const blur: Annotation = { ...base, id: "b", type: "blur", x: 200, y: 200, w: 50, h: 50 };
+const pen: Annotation = {
+  ...base,
+  id: "p",
+  type: "pen",
+  points: [
+    { x: 0, y: 100 },
+    { x: 50, y: 150 },
+    { x: 100, y: 100 },
+  ],
+};
 
 describe("hit testing", () => {
   it("measures distance to a segment", () => {
@@ -29,6 +39,11 @@ describe("hit testing", () => {
   it("hits rectangles on the outline only", () => {
     expect(hitTest([rect], { x: 201, y: 250 }, 3)?.id).toBe("r");
     expect(hitTest([rect], { x: 250, y: 250 }, 3)).toBeNull();
+  });
+
+  it("hits freehand strokes along the line only", () => {
+    expect(hitTest([pen], { x: 26, y: 127 }, 3)?.id).toBe("p");
+    expect(hitTest([pen], { x: 50, y: 110 }, 3)).toBeNull();
   });
 
   it("prefers the topmost annotation", () => {
@@ -48,6 +63,13 @@ describe("editing", () => {
     expect(resize(rect, "se", { x: 350, y: 260 })).toMatchObject({ x: 200, y: 200, w: 150, h: 60 });
     // Dragging past the opposite corner flips the box.
     expect(resize(rect, "se", { x: 150, y: 150 })).toMatchObject({ x: 150, y: 150, w: 50, h: 50 });
+  });
+
+  it("moves freehand strokes but doesn't reshape them", () => {
+    expect(bounds(pen)).toEqual({ x: 0, y: 100, w: 100, h: 50 });
+    expect(bounds(translate(pen, 10, -20))).toEqual({ x: 10, y: 80, w: 100, h: 50 });
+    expect(handlesFor(pen, 10)).toEqual([]);
+    expect(resize(pen, "se", { x: 500, y: 500 })).toBe(pen);
   });
 });
 

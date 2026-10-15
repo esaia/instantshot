@@ -35,6 +35,8 @@ const HANDLE_CURSOR: Record<HandleId, string> = {
 
 type Gesture =
   | { kind: "draw"; start: Point }
+  /** Freehand stroke; points are collected here so fast drags never drop any. */
+  | { kind: "pen"; points: Point[]; id: string }
   /** Opened on pointer up, so the click's own focus change can't close the text box. */
   | { kind: "text"; at: Point; existing: Annotation | null }
   | { kind: "move"; start: Point; original: Annotation }
@@ -113,7 +115,7 @@ export function Stage({
   /** Rotate handle distance above a box, source px (matches the rendered handle). */
   const rotateOffset = HANDLE_SIZE * ROTATE_HANDLE_GAP * sourcePerViewPx(mapping);
   const grabHandle = (a: Annotation | null, p: Point) =>
-    a ? handleAt(a, p, tol * 1.5, a.type === "arrow" ? 0 : rotateOffset) : null;
+    a ? handleAt(a, p, tol * 1.5, a.type === "arrow" || a.type === "pen" ? 0 : rotateOffset) : null;
   const strokeWidth = state.strokeWidth * source.scale;
 
   const openText = (at: Point, existing: Annotation | null) => {
@@ -229,6 +231,10 @@ export function Stage({
         dispatch({ type: "select", id: null });
         return;
       }
+    } else if (state.tool === "pen") {
+      const id = newId();
+      gesture.current = { kind: "pen", points: [p], id };
+      setDraft({ id, type: "pen", points: [p], color: state.color, width: strokeWidth });
     } else {
       gesture.current = { kind: "draw", start: p };
       setDraft(create(state.tool, p, p, newId(), e.shiftKey));
@@ -252,7 +258,14 @@ export function Stage({
       return;
     }
     if (g.kind === "text") return;
-    if (g.kind === "draw") {
+    if (g.kind === "pen") {
+      // Skip points closer than about a screen pixel; they only add weight.
+      const last = g.points[g.points.length - 1];
+      if (Math.hypot(p.x - last.x, p.y - last.y) < tol / 4) return;
+      g.points.push(p);
+      const points = [...g.points];
+      setDraft((d) => (d?.type === "pen" ? { ...d, points } : d));
+    } else if (g.kind === "draw") {
       setDraft((d) => (d ? create(state.tool, g.start, p, d.id, e.shiftKey) : d));
     } else if (g.kind === "move") {
       const moved = translate(g.original, p.x - g.start.x, p.y - g.start.y);
@@ -269,6 +282,19 @@ export function Stage({
     setActive(null);
     if (g?.kind === "text") {
       openText(g.at, g.existing);
+    } else if (g?.kind === "pen") {
+      setDraft(null);
+      // A click without dragging leaves a dot.
+      dispatch({
+        type: "add",
+        annotation: {
+          id: g.id,
+          type: "pen",
+          points: g.points,
+          color: state.color,
+          width: strokeWidth,
+        },
+      });
     } else if (g?.kind === "draw") {
       // Built from the release point: the rendered draft may lag behind fast drags.
       const d = create(state.tool, g.start, pointFrom(e), draft?.id ?? newId(), e.shiftKey);
@@ -277,7 +303,7 @@ export function Stage({
       const big =
         d.type === "arrow"
           ? Math.hypot(d.to.x - d.from.x, d.to.y - d.from.y) > tol * 2
-          : d.type !== "text" && d.w > tol && d.h > tol;
+          : d.type !== "text" && d.type !== "pen" && d.w > tol && d.h > tol;
       if (big) dispatch({ type: "add", annotation: d });
     } else if (g) {
       dispatch({ type: "seal" });

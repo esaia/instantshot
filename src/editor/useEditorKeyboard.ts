@@ -16,6 +16,7 @@ export interface KeyboardActions {
 
 const TOOL_KEYS: Record<string, Tool> = {
   v: "select",
+  d: "pen",
   a: "arrow",
   r: "rect",
   o: "ellipse",

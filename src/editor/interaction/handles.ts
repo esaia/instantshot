@@ -18,6 +18,13 @@ export interface Handle extends Point {
 
 /** Bounding box of an annotation, source px. */
 export function bounds(a: Annotation): Box {
+  if (a.type === "pen") {
+    const xs = a.points.map((p) => p.x);
+    const ys = a.points.map((p) => p.y);
+    const x = Math.min(...xs);
+    const y = Math.min(...ys);
+    return { x, y, w: Math.max(...xs) - x, h: Math.max(...ys) - y };
+  }
   if (a.type === "arrow") {
     return {
       x: Math.min(a.from.x, a.to.x),
@@ -40,6 +47,8 @@ const MAX_STRETCH = 6;
  * Text corners scale the font.
  */
 export function handlesFor(a: Annotation, rotateOffset = 0): Handle[] {
+  // Freehand strokes are moved, recolored or deleted, not reshaped.
+  if (a.type === "pen") return [];
   if (a.type === "arrow") {
     return [
       { id: "from", ...a.from },
@@ -63,7 +72,7 @@ export function handlesFor(a: Annotation, rotateOffset = 0): Handle[] {
 
 /** Rotation that points the rotate handle at `p`; `snap` (Shift) rounds to 15° steps. */
 export function rotateTo(a: Annotation, p: Point, snap = false): Annotation {
-  if (a.type === "arrow") return a;
+  if (a.type === "arrow" || a.type === "pen") return a;
   const c = boxCenter(a);
   let angle = Math.atan2(p.y - c.y, p.x - c.x) + Math.PI / 2;
   if (snap) angle = Math.round(angle / ROTATE_STEP) * ROTATE_STEP;
@@ -73,6 +82,9 @@ export function rotateTo(a: Annotation, p: Point, snap = false): Annotation {
 }
 
 export function translate(a: Annotation, dx: number, dy: number): Annotation {
+  if (a.type === "pen") {
+    return { ...a, points: a.points.map((p) => ({ x: p.x + dx, y: p.y + dy })) };
+  }
   if (a.type === "arrow") {
     return {
       ...a,
@@ -89,6 +101,7 @@ export function translate(a: Annotation, dx: number, dy: number): Annotation {
  * `constrain` (Shift) keeps the original proportions, or snaps arrows to 45°.
  */
 export function resize(a: Annotation, handle: HandleId, p: Point, constrain = false): Annotation {
+  if (a.type === "pen") return a;
   if (a.type === "arrow") {
     if (handle !== "from" && handle !== "to") return a;
     const fixed = handle === "from" ? a.to : a.from;
@@ -102,14 +115,14 @@ export function resize(a: Annotation, handle: HandleId, p: Point, constrain = fa
   // handle stays where it was on screen.
   const c = boxCenter(a);
   const local = resizeLocal(a, handle, rotatePoint(p, c, -angle), constrain);
-  if (local.type === "arrow") return local;
+  if (local.type === "arrow" || local.type === "pen") return local;
   const center = rotatePoint(boxCenter(local), c, angle);
   return { ...local, x: center.x - local.w / 2, y: center.y - local.h / 2 };
 }
 
 /** [`resize`] for an unrotated box. */
 function resizeLocal(a: Annotation, handle: HandleId, p: Point, constrain: boolean): Annotation {
-  if (a.type === "arrow") return a;
+  if (a.type === "arrow" || a.type === "pen") return a;
   const opposite: Point = {
     x: handle === "nw" || handle === "sw" ? a.x + a.w : a.x,
     y: handle === "nw" || handle === "ne" ? a.y + a.h : a.y,
