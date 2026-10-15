@@ -518,7 +518,8 @@ function SizeLabel({ rect, scale }: { rect: SelectionRect; scale: number }) {
   );
 }
 
-const BAR_WIDTH = 404;
+/** Fits the tools, color, undo, Copy, Edit and Cancel; grow it when adding a button. */
+const BAR_WIDTH = 440;
 const BAR_HEIGHT = 40;
 
 /**
@@ -661,7 +662,7 @@ function ActionBar({
         type="button"
         title="Copy (Return)"
         onClick={onCopy}
-        className="flex h-full flex-1 items-center justify-center gap-1.5 rounded-lg bg-white text-neutral-900 hover:bg-neutral-100"
+        className="flex h-full flex-1 items-center justify-center gap-1.5 rounded-lg bg-white px-2.5 text-neutral-900 hover:bg-neutral-100"
       >
         <svg
           viewBox="0 0 20 20"
@@ -681,7 +682,7 @@ function ActionBar({
         type="button"
         title="Edit (E)"
         onClick={onEdit}
-        className="flex h-full flex-1 items-center justify-center gap-1.5 rounded-lg hover:bg-white/10"
+        className="flex h-full flex-1 items-center justify-center gap-1.5 rounded-lg px-2.5 hover:bg-white/10"
       >
         <svg
           viewBox="0 0 20 20"
