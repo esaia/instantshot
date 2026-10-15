@@ -88,6 +88,13 @@ const places = [
   ["Apps and dialogs", "Error messages, labels and anything else you’d normally retype."],
 ];
 
+const settings = [
+  ["Your own shortcuts", "Click a shortcut to record a new one. Both work in any app, even with the window closed."],
+  ["A quick save folder", "Pick where screenshots land when you save them in one step."],
+  ["Starts with your computer", "Launch at login and stay out of the way in the menu bar."],
+  ["Text the way you want it", "Detect the language automatically, and keep line breaks or join them into paragraphs."],
+];
+
 // `text` is the plain-text answer for structured data when `a` contains markup.
 const faqs: { q: string; a: ReactNode; text?: string }[] = [
   {
@@ -306,6 +313,35 @@ export default function Home() {
               </li>
             ))}
           </ul>
+        </section>
+
+        <section className="section split" id="settings" aria-labelledby="settings-title">
+          <div>
+            <h2 id="settings-title">
+              Set it up <span className="hl">your way.</span>
+            </h2>
+            <p className="section-lede">
+              One small window holds every option. Close it and InstantShot keeps running in the
+              menu bar.
+            </p>
+            <ul className="places">
+              {settings.map(([title, body]) => (
+                <li key={title}>
+                  <h3>{title}</h3>
+                  <p>{body}</p>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <img
+            className="settings-shot"
+            src="/media/settings.png"
+            alt="The InstantShot Settings window: shortcuts for capturing text and screenshots, a quick save folder, launch at login, copy confirmation, start minimized, and text recognition options"
+            width={1062}
+            height={1588}
+            loading="lazy"
+            decoding="async"
+          />
         </section>
 
         <section className="section faq" id="faq" aria-labelledby="faq-title">

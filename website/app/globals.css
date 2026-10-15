@@ -912,6 +912,21 @@ kbd {
   padding-top: 6px;
 }
 
+#settings .places {
+  margin-top: 36px;
+}
+
+.settings-shot {
+  display: block;
+  justify-self: center;
+  width: 100%;
+  max-width: 480px;
+  height: auto;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 30px 80px rgb(0 0 0 / 0.45);
+}
+
 .faq-list {
   max-width: 760px;
   margin-top: 40px;
