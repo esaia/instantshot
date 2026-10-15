@@ -92,7 +92,7 @@ pub fn show(app: &AppHandle, outcome: &Outcome) {
         let _ = window.emit_to(TOAST_LABEL, EVENT_HIDE, ());
         tokio::time::sleep(FADE_OUT).await;
         if GENERATION.load(Ordering::SeqCst) == generation {
-            let _ = window.hide();
+            overlay::hide(&window);
         }
     });
 }

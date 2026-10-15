@@ -108,8 +108,17 @@ pub fn hide_all(app: &AppHandle) {
 /// Hides every overlay without touching focus (the screenshot editor takes over instead).
 pub fn hide_overlays(app: &AppHandle) {
     for window in overlays(app) {
-        let _ = window.hide();
+        hide(&window);
     }
+}
+
+/// Hides an overlay or the HUD. On Windows they're shown with Win32 calls tao doesn't track, so
+/// they're hidden the same way.
+pub fn hide(window: &WebviewWindow) {
+    #[cfg(windows)]
+    platform::hide(window);
+    #[cfg(not(windows))]
+    let _ = window.hide();
 }
 
 /// Re-activates the app that was frontmost when the capture started, if any.
