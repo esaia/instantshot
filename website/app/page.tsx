@@ -177,11 +177,17 @@ const jsonLd = {
 function Downloads() {
   return (
     <div className="downloads">
-      <a className="button button-primary" href={MAC_DOWNLOAD}>
-        <AppleLogo /> Download for Mac
+      <a className="button download-mac" href={MAC_DOWNLOAD}>
+        <AppleLogo />
+        <span>
+          <span className="download-for">Download for </span>Mac
+        </span>
       </a>
-      <a className="button button-ghost" href={WINDOWS_DOWNLOAD}>
-        <WindowsLogo /> Windows
+      <a className="button download-windows" href={WINDOWS_DOWNLOAD}>
+        <WindowsLogo />
+        <span>
+          <span className="download-for">Download for </span>Windows
+        </span>
       </a>
     </div>
   );

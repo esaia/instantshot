@@ -74,6 +74,16 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     // Browser extensions often add attributes to <html> before React loads; this ignores
     // attribute differences on this one element only (children are still checked).
     <html lang="en" className={inter.variable} suppressHydrationWarning>
+      <head>
+        {/* Runs before the first paint so the right download button is highlighted at once. */}
+        <script
+          // biome-ignore lint/security/noDangerouslySetInnerHtml: static inline snippet
+          dangerouslySetInnerHTML={{
+            __html:
+              'if(/Windows/.test(navigator.userAgent))document.documentElement.dataset.os="windows"',
+          }}
+        />
+      </head>
       <body>{children}</body>
     </html>
   );

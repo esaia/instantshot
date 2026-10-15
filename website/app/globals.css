@@ -218,23 +218,47 @@ summary:focus-visible {
   height: 20px;
 }
 
-.button-primary {
+/*
+ * The download for the visitor's system is the big blue one, first and spelled out. Mac by
+ * default; `data-os` on <html> is set before the first paint (see layout.tsx).
+ */
+.download-mac,
+:root[data-os="windows"] .download-windows {
+  border: 0;
   background: var(--select);
   color: #fff;
   box-shadow: 0 10px 30px -10px rgb(76 130 255 / 0.7);
 }
 
-.button-primary:hover {
+.download-mac:hover,
+:root[data-os="windows"] .download-windows:hover {
   background: #5b8dff;
 }
 
-.button-ghost {
+.download-windows,
+:root[data-os="windows"] .download-mac {
   border: 1px solid var(--line);
+  background: none;
   color: var(--text);
+  box-shadow: none;
 }
 
-.button-ghost:hover {
+.download-windows:hover,
+:root[data-os="windows"] .download-mac:hover {
   background: var(--panel);
+}
+
+:root[data-os="windows"] .download-windows {
+  order: -1;
+}
+
+.download-windows .download-for,
+:root[data-os="windows"] .download-mac .download-for {
+  display: none;
+}
+
+:root[data-os="windows"] .download-windows .download-for {
+  display: inline;
 }
 
 .fineprint {
