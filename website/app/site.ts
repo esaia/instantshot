@@ -1,4 +1,4 @@
-export const SITE_URL = "https://textpicker.app";
+export const SITE_URL = "https://instantshot.vercel.app";
 export const SITE_NAME = "InstantShot";
 export const SITE_TITLE = "InstantShot: snip anything, copy any text on screen";
 export const SITE_DESCRIPTION =

@@ -8,7 +8,7 @@ import { Keys, ShortcutInput } from "./ShortcutInput";
 import { Button, Notice, Row, RowIcon, Section, Toggle } from "./ui";
 
 const GITHUB_URL = "https://github.com/esaia/instantshot";
-const WEBSITE_URL = "https://textpicker.app";
+const WEBSITE_URL = "https://instantshot.vercel.app";
 
 export function Settings() {
   const {

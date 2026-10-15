@@ -192,8 +192,8 @@ invisible to them, so publishing the release is what ships an update. Bump `vers
 `package.json`, `src-tauri/Cargo.toml` and `src-tauri/tauri.conf.json` before tagging.
 
 Branding lives in `src-tauri/icons`. The sources are `src-tauri/icons/source/*.svg`; render `app-icon.svg` to a 1024px PNG and run `pnpm tauri icon src-tauri/icons/app-icon.png`, then delete the generated `android/` and `ios/` folders. `tray-template.png` is the 44px render of `tray-template.svg`.
-The bundle identifier `app.instantshot.desktop` and the website link in
-`src/components/Settings.tsx` are placeholders.
+The bundle identifier is `app.instantshot.desktop`. Don't change it after release: macOS ties the
+Screen Recording permission and settings to it.
 
 ## License
 
