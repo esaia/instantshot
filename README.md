@@ -1,66 +1,156 @@
+<div align="center">
+
+<img src="src-tauri/icons/128x128@2x.png" width="112" alt="InstantShot icon" />
+
 # InstantShot
 
-**Select text anywhere. Copy instantly.**
+**Snip anything. Copy any text on screen.**
 
-InstantShot is a small background utility for macOS and Windows. Press a shortcut, drag a box
-around any text on screen (websites, apps, videos, images, PDFs), and the recognized text is on
-your clipboard, ready to paste.
+Beautiful screenshots and instant on-screen text recognition for macOS and Windows.<br />
+One shortcut each, all on your device.
 
-- Default shortcut: **⇧⌘2** on macOS, **Ctrl+Shift+2** on Windows
-- **Screenshots** (**⇧⌘1** / **Ctrl+Shift+1**): select a region and it opens in an editor that
-  puts it on a wallpaper, color or gradient background with padding, rounded corners, shadow,
-  window chrome and aspect presets, plus arrows, shapes, text, blur and pixelate. Copy, save,
-  quick-save to a folder, or drag the result into any app.
-- Lives in the menu bar (macOS) or the system tray (Windows); no Dock or taskbar icon
-- Text recognition runs **locally** with the OS's own engine: Apple Vision on macOS,
-  Windows.Media.Ocr on Windows
+[![Latest release](https://img.shields.io/github/v/release/esaia/instantshot?style=flat-square&color=2f6feb)](https://github.com/esaia/instantshot/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/esaia/instantshot/total?style=flat-square&color=2f6feb)](https://github.com/esaia/instantshot/releases)
+[![Platforms](https://img.shields.io/badge/platform-macOS%20%7C%20Windows-lightgrey?style=flat-square)](#requirements)
+[![License: MIT](https://img.shields.io/github/license/esaia/instantshot?style=flat-square)](LICENSE)
+[![CI](https://img.shields.io/github/actions/workflow/status/esaia/instantshot/ci.yml?branch=main&style=flat-square&label=CI)](https://github.com/esaia/instantshot/actions/workflows/ci.yml)
 
-## Privacy
+[**Download for macOS**](https://github.com/esaia/instantshot/releases/latest/download/InstantShot.dmg) &nbsp;·&nbsp;
+[**Download for Windows**](https://github.com/esaia/instantshot/releases/latest/download/InstantShot-Setup.exe) &nbsp;·&nbsp;
+[Website](https://instantshot.vercel.app)
 
-InstantShot never uploads screenshots or text, has no analytics or telemetry, and makes no
-network requests. For text capture, pixels exist only in memory for the duration of one
-recognition. A screenshot stays in memory while its editor is open and is written to disk only
-when you save it; dragging it out writes a temporary PNG to the app's cache folder, deleted when
-the editor closes. Besides your saved files, the only file InstantShot writes is its settings
-(`settings.json` in the app data directory, including the editor's last style). Diagnostic logs
-record timings and errors, never captured text.
+<br />
 
-## Requirements
+<img src="docs/media/editor-demo.gif" width="860" alt="InstantShot demo: selecting a region, placing it on a wallpaper, adding arrows and picking a layout" />
 
-| | Minimum | Notes |
+</div>
+
+## Features
+
+### 📝 Copy text from anything — <kbd>⇧</kbd><kbd>⌘</kbd><kbd>2</kbd> / <kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>2</kbd>
+
+Drag a box around any text on screen (websites, apps, paused or playing videos, images, scanned
+PDFs, screen shares) and the recognized text is on your clipboard, ready to paste. Line breaks,
+paragraphs and code indentation are preserved.
+
+### 📸 Beautiful screenshots — <kbd>⇧</kbd><kbd>⌘</kbd><kbd>1</kbd> / <kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>1</kbd>
+
+Select a region and it opens in an editor that makes it presentation-ready:
+
+- **Backgrounds** — your wallpapers, gradients or solid colors, with padding, rounded corners and shadow
+- **Window chrome** — light or dark window bar
+- **Size presets** — Auto, 1:1, 4:3, 3:2, 16:9, 9:16, 4:5 for posts, slides and stories
+- **Markup** — arrows, boxes, ellipses, text, blur and pixelate; every shape can be moved, resized and rotated
+- **Export** — copy, save, quick-save to a folder, or drag the result straight into any app
+
+### 🔒 Private by design
+
+OCR runs **locally** with the OS's own engine (Apple Vision on macOS, Windows.Media.Ocr on
+Windows). No uploads, no accounts, no analytics. [More below](#privacy).
+
+### 🪶 Stays out of the way
+
+Lives in the menu bar (macOS) or system tray (Windows), with no Dock or taskbar icon. Updates
+itself from GitHub releases, asking before it installs.
+
+## Screenshots
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="website/public/media/step-select.jpg" alt="A selection over part of a page with its size, handles, and arrow, shape, color, Copy and Edit buttons below it" />
+      <p><b>Select.</b> Drag over anything, then adjust the edges. The screen freezes, so even a playing video holds still. Draw right away, copy, or press Edit.</p>
+    </td>
+    <td width="50%" valign="top">
+      <img src="website/public/media/step-annotate.jpg" alt="The InstantShot editor showing the screenshot on a soft wallpaper, with the wallpaper picker on the right" />
+      <p><b>Make it beautiful.</b> Drop it on a wallpaper, gradient or color. Add arrows, boxes, text and blur.</p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="website/public/media/step-layout.jpg" alt="The Layout tab with window styles None, Light and Dark, and size presets from Auto to 4:5" />
+      <p><b>Fit where it’s going.</b> Add a window bar and pick a size: square for a post, 16:9 for slides, 9:16 for a story. Then press ⌘C.</p>
+    </td>
+    <td width="50%" valign="top">
+      <img src="website/public/media/editor-demo.jpg" alt="A finished screenshot in a macOS window frame on a blue wallpaper" />
+      <p><b>Ready to share.</b> Copy it, save it, or drag it straight into Slack, Figma, a doc or a tweet.</p>
+    </td>
+  </tr>
+</table>
+
+## Installation
+
+| Platform | Download | Minimum |
 |---|---|---|
-| macOS | 14 Sonoma (Apple Silicon or Intel) | Requires *Screen & System Audio Recording* permission |
-| Windows | Windows 10 1809+ / Windows 11 | Needs at least one language with the *Optical character recognition* feature; WebView2 (built into Windows 11, installed by the installer on Windows 10) |
+| **macOS** (Apple Silicon + Intel) | [`InstantShot.dmg`](https://github.com/esaia/instantshot/releases/latest/download/InstantShot.dmg) | macOS 14 Sonoma |
+| **Windows** | [`InstantShot-Setup.exe`](https://github.com/esaia/instantshot/releases/latest/download/InstantShot-Setup.exe) | Windows 10 1809+ / Windows 11 |
 
-macOS 14 is required because InstantShot uses ScreenCaptureKit's one-shot `SCScreenshotManager`.
-The older `CGWindowListCreateImage` API is obsoleted in the macOS 15 SDK.
+All versions are on the [releases page](https://github.com/esaia/instantshot/releases).
 
-## Using InstantShot
+### Requirements
 
-1. Launch InstantShot. On first launch the Settings window explains the permission and shortcut.
+- **macOS** needs the *Screen & System Audio Recording* permission (InstantShot asks the first
+  time you capture). It does **not** use Accessibility permission.
+- **Windows** needs at least one language with the *Optical character recognition* feature
+  installed, and WebView2 (built into Windows 11; the installer adds it on Windows 10).
+
+## Usage
+
+1. Launch InstantShot. On first launch the Settings window explains the permission and shortcuts.
 2. Press the shortcut. The screen dims slightly and the cursor becomes a crosshair.
 3. Drag over the text. When you release, the text is copied and a small confirmation appears.
 4. Paste anywhere.
 
-To cancel, press **Esc**, press the shortcut again, or switch apps. Cancelling (or finding no
-text) leaves the clipboard exactly as it was.
+To cancel, press <kbd>Esc</kbd>, press the shortcut again, or switch apps. Cancelling (or finding
+no text) leaves the clipboard exactly as it was. Both shortcuts can be changed in Settings.
 
-The menu bar / tray menu has **Capture Text**, **Settings…**, **Launch at Login**, and **Quit**.
-Closing Settings keeps InstantShot running.
+The menu bar / tray menu has **Capture Text**, **Capture Screenshot**, **Settings…**, **Launch at
+Login**, **Check for Updates…** and **Quit**. Closing Settings keeps InstantShot running.
 
-### macOS permission
+<details>
+<summary><b>macOS Screen Recording permission</b></summary>
 
-macOS requires Screen Recording permission for any app that reads screen pixels. InstantShot
-asks the first time you capture. Enable it in **System Settings › Privacy & Security › Screen
-& System Audio Recording**, then relaunch InstantShot (macOS applies the change only after a
-restart). InstantShot does **not** use Accessibility permission. On macOS 15 and later, the
-system may occasionally ask you to re-confirm screen access. That prompt comes from macOS.
+<br />
+
+macOS requires Screen Recording permission for any app that reads screen pixels. Enable it in
+**System Settings › Privacy & Security › Screen & System Audio Recording**, then relaunch
+InstantShot (macOS applies the change only after a restart). On macOS 15 and later, the system
+may occasionally ask you to re-confirm screen access. That prompt comes from macOS.
+
+</details>
+
+## Privacy
+
+InstantShot never uploads screenshots or text and has no analytics or telemetry. The only
+network request it makes is the daily update check against this repository's GitHub releases.
+
+- For text capture, pixels exist only in memory for the duration of one recognition.
+- A screenshot stays in memory while its editor is open and is written to disk only when you
+  save it. Dragging it out writes a temporary PNG to the app's cache folder, deleted when the
+  editor closes.
+- Besides your saved files, the only file InstantShot writes is its settings (`settings.json` in
+  the app data directory, including the editor's last style).
+- Diagnostic logs record timings and errors, never captured text.
+
+## Known limitations
+
+- **Protected content:** DRM video, password fields in some apps, UAC/secure desktop, and other
+  OS-protected surfaces are captured as black, which yields "No text found".
+- **Vision** occasionally drops a line containing a single punctuation character (for example a
+  lone `}` in code). Language correction is disabled so text is copied as recognized
+  (identifiers, URLs and accents stay intact).
+- **Languages:** OCR languages depend on the OS. Vision on macOS 26 supports 30 languages
+  (Latin, Cyrillic, CJK, Arabic, Thai, Vietnamese, …) but not, for example, Georgian. Windows
+  recognizes only languages whose OCR feature is installed; Settings lists what is available.
+- **Shortcut conflicts:** Windows reports shortcuts already registered by other apps. macOS does
+  not, so InstantShot only blocks well-known system shortcuts there.
+- A selection can't span two displays (same as the macOS screenshot tool).
 
 ## Development
 
-Prerequisites: Rust (stable), Node.js 20.19+ or 22+, pnpm 10, plus Xcode Command Line Tools
-(macOS) or the MSVC build tools and WebView2 (Windows). See
-[Tauri prerequisites](https://tauri.app/start/prerequisites/).
+Built with [Tauri 2](https://tauri.app), Rust and React. Prerequisites: Rust (stable),
+Node.js 20.19+ or 22+, pnpm 10, plus Xcode Command Line Tools (macOS) or the MSVC build tools and
+WebView2 (Windows). See [Tauri prerequisites](https://tauri.app/start/prerequisites/).
 
 ```sh
 pnpm install
@@ -72,9 +162,14 @@ cd src-tauri && cargo fmt --check && cargo clippy --all-targets -- -D warnings &
 
 `cargo test` includes real OCR runs on the fixture images in `src-tauri/tests/fixtures`.
 
-**macOS permission during development.** The Screen Recording grant is tied to the app's code
-signature. Ad-hoc signed builds get a new signature on every rebuild, so macOS forgets the grant.
-Build a bundle signed with your own development certificate to keep it stable:
+<details>
+<summary><b>Keeping the macOS permission between rebuilds</b></summary>
+
+<br />
+
+The Screen Recording grant is tied to the app's code signature. Ad-hoc signed builds get a new
+signature on every rebuild, so macOS forgets the grant. Build a bundle signed with your own
+development certificate to keep it stable:
 
 ```sh
 export APPLE_SIGNING_IDENTITY="Apple Development: Your Name (TEAMID)"
@@ -84,7 +179,12 @@ open src-tauri/target/debug/bundle/macos/InstantShot.app
 
 Under `pnpm tauri dev` the permission belongs to your terminal app instead.
 
-### Landing page
+</details>
+
+<details>
+<summary><b>Landing page</b></summary>
+
+<br />
 
 The Next.js landing page is in `website/` and builds as a static site without changing the
 desktop app's Vite/Tauri setup.
@@ -96,105 +196,23 @@ pnpm dev             # local preview
 pnpm build           # static output in website/out/
 ```
 
-The current page links only to its own sections and preview. Add a real download destination
-once release artifacts are available; the GitHub and website URLs in the desktop settings are
-still placeholders.
+</details>
 
-### Project layout
+### Further reading
 
-```text
-src/                         React UI (one bundle; the window label picks the view)
-  components/CaptureOverlay   selection layer (one per display)
-  components/Toast            confirmation HUD
-  components/Settings         settings window (+ ShortcutInput, PermissionStatus)
-  lib/                        typed command wrappers, shortcut formatting
-src-tauri/src/
-  controller.rs               capture session orchestration
-  workflow.rs                 state machine (Idle → Selecting → Capturing → OCR → Copying)
-  geometry.rs                 logical ↔ physical coordinate conversion
-  display/{macos,windows}     native display enumeration
-  capture/{macos,windows}     region capture → BGRA frame
-  ocr/{macos,windows}         Vision / Windows.Media.Ocr → positioned text
-  ocr/layout.rs               reading order, lines, paragraphs, indentation (shared)
-  overlay/{macos,windows}     overlay window pool, native window tweaks, focus restore
-  feedback.rs                 HUD, settings.rs, shortcuts.rs, tray.rs, permissions.rs
-```
+- [Architecture](docs/ARCHITECTURE.md): project layout, how capture works, coordinate strategy
+- [Testing](docs/TESTING.md): automated coverage and the manual test checklist
+- [Releasing](docs/RELEASING.md): tagged builds, signing secrets, auto-updates, branding
 
-### How capture works
+## Contributing
 
-1. The shortcut starts a session. A second press while selecting cancels it; presses while a
-   capture is processing are ignored, so sessions never overlap.
-2. InstantShot remembers the frontmost app, then shows one borderless transparent overlay per
-   display. Overlays are created on first use and reused afterwards.
-3. When you release the mouse, only the selected rectangle is captured, with InstantShot's own
-   windows excluded: `SCContentFilter` excluding the app on macOS, `WDA_EXCLUDEFROMCAPTURE` on
-   Windows. The selection is also drawn as a clear hole (dimming and border sit outside it),
-   so the captured pixels are never tinted.
-4. OCR runs on a background thread. The text is copied, focus returns to the previous app, and
-   the HUD confirms.
-
-Every outcome (success, cancel, no text, permission, capture/OCR/clipboard error) goes through
-one exit path that hides the overlays, restores focus, and resets the state. If an overlay fails
-to report ready within 2.5 s, the session is aborted, so an invisible window can never keep
-intercepting input.
-
-### Coordinate strategy
-
-Each overlay covers exactly one display, and a selection stays within that display. The overlay
-reports the rectangle in window-local CSS pixels.
-
-- **macOS:** CSS px are points. The rect is passed as `sourceRect` (display-local points), and
-  the output size is points × the display's backing scale factor.
-- **Windows:** physical px = CSS px × monitor DPI scale. The result is offset by the monitor's
-  physical origin in the virtual desktop, which can be negative for displays left of or above
-  the primary.
-
-Edges are rounded independently so fractional scales (125%, 150%) don't drift. Unit tests in
-`geometry.rs` cover these cases.
-
-## Known limitations
-
-- **Protected content:** DRM video, password fields in some apps, UAC/secure desktop, and other
-  OS-protected surfaces are captured as black, which yields "No text found".
-- **Vision** occasionally drops a line containing a single punctuation character (for example a
-  lone `}` in code). Language correction is disabled so text is copied as recognized (identifiers,
-  URLs and accents stay intact).
-- **Languages:** OCR languages depend on the OS. Vision on macOS 26 supports 30 languages
-  (Latin, Cyrillic, CJK, Arabic, Thai, Vietnamese, …) but not, for example, Georgian. Windows
-  recognizes only languages whose OCR feature is installed; Settings lists what is available.
-- **Shortcut conflicts:** Windows reports shortcuts already registered by other apps. macOS does
-  not, so InstantShot only blocks well-known system shortcuts there.
-- A selection can't span two displays (same as the macOS screenshot tool).
-
-## Distribution
-
-Releases are built by `.github/workflows/release.yml` when a `v*` tag is pushed: a universal
-macOS `.dmg` (Apple Silicon + Intel) and a Windows NSIS installer, attached to a draft GitHub
-release.
-
-**Never commit signing credentials.** Configure them as repository secrets:
-
-| Secret | Purpose |
-|---|---|
-| `APPLE_CERTIFICATE`, `APPLE_CERTIFICATE_PASSWORD` | Base64 `.p12` of a *Developer ID Application* certificate and its password |
-| `APPLE_SIGNING_IDENTITY` | e.g. `Developer ID Application: Name (TEAMID)` |
-| `APPLE_ID`, `APPLE_PASSWORD`, `APPLE_TEAM_ID` | Notarization (use an app-specific password) |
-| `TAURI_SIGNING_PRIVATE_KEY` | Contents of the updater private key (`pnpm tauri signer generate`); its public key is `plugins.updater.pubkey` in `tauri.conf.json` |
-
-Without these secrets the macOS build is unsigned and Gatekeeper will block it. Windows builds
-are unsigned by default. To sign them, add a code-signing certificate following
-[Tauri's Windows signing guide](https://tauri.app/distribute/sign/windows/). The installer
-downloads the WebView2 runtime if it's missing (Windows 10).
-
-Installed copies check `latest.json` on the latest published release once a day (and from
-**Check for Updates…** in the tray menu or Settings), then ask before installing. Drafts are
-invisible to them, so publishing the release is what ships an update. Bump `version` in
-`package.json`, `src-tauri/Cargo.toml` and `src-tauri/tauri.conf.json` before tagging.
-
-Branding lives in `src-tauri/icons`. The sources are `src-tauri/icons/source/*.svg`; render `app-icon.svg` to a 1024px PNG and run `pnpm tauri icon src-tauri/icons/app-icon.png`, then delete the generated `android/` and `ios/` folders. `tray-template.png` is the 44px render of `tray-template.svg`.
-The bundle identifier is `app.instantshot.desktop`. Don't change it after release: macOS ties the
-Screen Recording permission and settings to it.
+Issues and pull requests are welcome. Please run `pnpm check` and the `cargo` checks above
+before opening a PR.
 
 ## License
 
 InstantShot is free and open source under the [MIT License](LICENSE).
+
+<div align="center">
+<sub>Made by <a href="https://x.com/esaia__">@esaia__</a></sub>
+</div>
