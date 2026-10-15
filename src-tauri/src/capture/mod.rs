@@ -1,5 +1,5 @@
 //! Region capture. Each platform captures exactly one rectangle on one display, excluding
-//! TextPicker's own windows, and returns it as a BGRA8 [`Frame`]. Nothing is written to disk.
+//! InstantShot's own windows, and returns it as a BGRA8 [`Frame`]. Nothing is written to disk.
 
 use crate::display::Display;
 use crate::error::CaptureError;

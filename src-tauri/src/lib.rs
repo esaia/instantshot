@@ -163,7 +163,7 @@ pub fn run() {
             _ => {}
         })
         .build(tauri::generate_context!())
-        .expect("error while building TextPicker")
+        .expect("error while building InstantShot")
         .run(|_app, event| match event {
             // Background utility: never exit just because no window is open.
             RunEvent::ExitRequested {

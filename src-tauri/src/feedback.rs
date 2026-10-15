@@ -99,7 +99,7 @@ pub fn show(app: &AppHandle, outcome: &Outcome) {
 
 fn build(app: &AppHandle) -> tauri::Result<tauri::WebviewWindow> {
     let window = WebviewWindowBuilder::new(app, TOAST_LABEL, WebviewUrl::App("index.html".into()))
-        .title("TextPicker")
+        .title("InstantShot")
         .transparent(true)
         .decorations(false)
         .shadow(false)

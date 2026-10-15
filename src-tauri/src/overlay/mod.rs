@@ -68,7 +68,7 @@ pub fn prepare(app: &AppHandle, displays: &[Display]) -> tauri::Result<()> {
             continue;
         }
         let window = WebviewWindowBuilder::new(app, &label, WebviewUrl::App("index.html".into()))
-            .title("TextPicker Selection")
+            .title("InstantShot Selection")
             .transparent(true)
             .decorations(false)
             .shadow(false)

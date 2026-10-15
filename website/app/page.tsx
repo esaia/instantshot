@@ -58,7 +58,7 @@ const shots = [
     src: "/media/step-annotate.jpg?v=2",
     width: 1400,
     height: 988,
-    alt: "The TextPicker editor showing the screenshot on a soft wallpaper, with the wallpaper picker on the right",
+    alt: "The InstantShot editor showing the screenshot on a soft wallpaper, with the wallpaper picker on the right",
     title: "Make it beautiful",
     body: "Drop it on a wallpaper, gradient or color. Add arrows, boxes, text and blur; every shape can be moved, resized and rotated.",
   },
@@ -83,10 +83,10 @@ const places = [
 const faqs: { q: string; a: ReactNode; text?: string }[] = [
   {
     q: "Is it really free?",
-    text: "Yes, completely. TextPicker is open source under the MIT license: no trial, no subscription, no ads and no account. The whole app, including how it handles your screen, is on GitHub for anyone to read, build or improve.",
+    text: "Yes, completely. InstantShot is open source under the MIT license: no trial, no subscription, no ads and no account. The whole app, including how it handles your screen, is on GitHub for anyone to read, build or improve.",
     a: (
       <>
-        Yes, completely. TextPicker is open source under the MIT license: no trial, no
+        Yes, completely. InstantShot is open source under the MIT license: no trial, no
         subscription, no ads and no account. The whole app, including how it handles your screen,
         is on <a href={GITHUB}>GitHub</a> for anyone to read, build or improve.
       </>
@@ -102,7 +102,7 @@ const faqs: { q: string; a: ReactNode; text?: string }[] = [
   },
   {
     q: "Which systems does it run on?",
-    a: "macOS 14 Sonoma or later, on Apple Silicon and Intel, and Windows 10 or 11. On macOS you grant Screen Recording permission once so TextPicker can read the area you select.",
+    a: "macOS 14 Sonoma or later, on Apple Silicon and Intel, and Windows 10 or 11. On macOS you grant Screen Recording permission once so InstantShot can read the area you select.",
   },
   {
     q: "Which languages can it read?",
@@ -110,7 +110,7 @@ const faqs: { q: string; a: ReactNode; text?: string }[] = [
   },
   {
     q: "Can I change the shortcuts?",
-    a: "Yes, both of them. The defaults are ⇧⌘2 for text and ⇧⌘1 for screenshots (Ctrl+Shift+2 and Ctrl+Shift+1 on Windows). Pick any combination in Settings; TextPicker tells you if another app already uses it.",
+    a: "Yes, both of them. The defaults are ⇧⌘2 for text and ⇧⌘1 for screenshots (Ctrl+Shift+2 and Ctrl+Shift+1 on Windows). Pick any combination in Settings; InstantShot tells you if another app already uses it.",
   },
   {
     q: "What if it can’t read something?",
@@ -182,14 +182,14 @@ export default function Home() {
         <nav className="nav" aria-label="Main">
           <a className="brand" href="#top">
             <PickLogo className="brand-mark" />
-            TextPicker
+            InstantShot
           </a>
           <div className="nav-links">
             <a href="#how">How it works</a>
             <a href="#editor">Editor</a>
             <a href="#faq">FAQ</a>
           </div>
-          <a className="nav-github" href={GITHUB} aria-label="TextPicker on GitHub">
+          <a className="nav-github" href={GITHUB} aria-label="InstantShot on GitHub">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path
                 fill="currentColor"
@@ -285,7 +285,7 @@ export default function Home() {
               Text you can see <span className="hl">but can’t select.</span>
             </h2>
             <p className="section-lede">
-              If it’s on your screen, TextPicker can read it. It keeps reading order and indentation,
+              If it’s on your screen, InstantShot can read it. It keeps reading order and indentation,
               so code and lists paste the way they look.
             </p>
           </div>
@@ -318,7 +318,7 @@ export default function Home() {
               <PickLogo className="maker-badge" />
             </div>
             <div className="maker-copy">
-              <p className="maker-label">The human behind TextPicker</p>
+              <p className="maker-label">The human behind InstantShot</p>
               <h2 id="maker-title">
                 Hey, I’m Esaia <span aria-hidden="true">👋</span>
               </h2>
@@ -329,7 +329,7 @@ export default function Home() {
                 always wished came with my computer.
               </p>
               <p>
-                TextPicker is free, open source and small on purpose, and it runs entirely on your
+                InstantShot is free, open source and small on purpose, and it runs entirely on your
                 computer. If something doesn’t work or you have an idea, open an issue or send a pull
                 request.
               </p>
@@ -357,7 +357,7 @@ export default function Home() {
       <footer className="footer">
         <a className="brand" href="#top">
           <PickLogo className="brand-mark" />
-          TextPicker
+          InstantShot
         </a>
         <span className="footer-note">Free and open source · MIT license</span>
         <a href={GITHUB}>Source on GitHub</a>

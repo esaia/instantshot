@@ -1,8 +1,8 @@
-# TextPicker
+# InstantShot
 
 **Select text anywhere. Copy instantly.**
 
-TextPicker is a small background utility for macOS and Windows. Press a shortcut, drag a box
+InstantShot is a small background utility for macOS and Windows. Press a shortcut, drag a box
 around any text on screen (websites, apps, videos, images, PDFs), and the recognized text is on
 your clipboard, ready to paste.
 
@@ -17,11 +17,11 @@ your clipboard, ready to paste.
 
 ## Privacy
 
-TextPicker never uploads screenshots or text, has no analytics or telemetry, and makes no
+InstantShot never uploads screenshots or text, has no analytics or telemetry, and makes no
 network requests. For text capture, pixels exist only in memory for the duration of one
 recognition. A screenshot stays in memory while its editor is open and is written to disk only
 when you save it; dragging it out writes a temporary PNG to the app's cache folder, deleted when
-the editor closes. Besides your saved files, the only file TextPicker writes is its settings
+the editor closes. Besides your saved files, the only file InstantShot writes is its settings
 (`settings.json` in the app data directory, including the editor's last style). Diagnostic logs
 record timings and errors, never captured text.
 
@@ -32,12 +32,12 @@ record timings and errors, never captured text.
 | macOS | 14 Sonoma (Apple Silicon or Intel) | Requires *Screen & System Audio Recording* permission |
 | Windows | Windows 10 1809+ / Windows 11 | Needs at least one language with the *Optical character recognition* feature; WebView2 (built into Windows 11, installed by the installer on Windows 10) |
 
-macOS 14 is required because TextPicker uses ScreenCaptureKit's one-shot `SCScreenshotManager`.
+macOS 14 is required because InstantShot uses ScreenCaptureKit's one-shot `SCScreenshotManager`.
 The older `CGWindowListCreateImage` API is obsoleted in the macOS 15 SDK.
 
-## Using TextPicker
+## Using InstantShot
 
-1. Launch TextPicker. On first launch the Settings window explains the permission and shortcut.
+1. Launch InstantShot. On first launch the Settings window explains the permission and shortcut.
 2. Press the shortcut. The screen dims slightly and the cursor becomes a crosshair.
 3. Drag over the text. When you release, the text is copied and a small confirmation appears.
 4. Paste anywhere.
@@ -46,14 +46,14 @@ To cancel, press **Esc**, press the shortcut again, or switch apps. Cancelling (
 text) leaves the clipboard exactly as it was.
 
 The menu bar / tray menu has **Capture Text**, **Settings…**, **Launch at Login**, and **Quit**.
-Closing Settings keeps TextPicker running.
+Closing Settings keeps InstantShot running.
 
 ### macOS permission
 
-macOS requires Screen Recording permission for any app that reads screen pixels. TextPicker
+macOS requires Screen Recording permission for any app that reads screen pixels. InstantShot
 asks the first time you capture. Enable it in **System Settings › Privacy & Security › Screen
-& System Audio Recording**, then relaunch TextPicker (macOS applies the change only after a
-restart). TextPicker does **not** use Accessibility permission. On macOS 15 and later, the
+& System Audio Recording**, then relaunch InstantShot (macOS applies the change only after a
+restart). InstantShot does **not** use Accessibility permission. On macOS 15 and later, the
 system may occasionally ask you to re-confirm screen access. That prompt comes from macOS.
 
 ## Development
@@ -79,7 +79,7 @@ Build a bundle signed with your own development certificate to keep it stable:
 ```sh
 export APPLE_SIGNING_IDENTITY="Apple Development: Your Name (TEAMID)"
 pnpm tauri build --debug --bundles app
-open src-tauri/target/debug/bundle/macos/TextPicker.app
+open src-tauri/target/debug/bundle/macos/InstantShot.app
 ```
 
 Under `pnpm tauri dev` the permission belongs to your terminal app instead.
@@ -124,9 +124,9 @@ src-tauri/src/
 
 1. The shortcut starts a session. A second press while selecting cancels it; presses while a
    capture is processing are ignored, so sessions never overlap.
-2. TextPicker remembers the frontmost app, then shows one borderless transparent overlay per
+2. InstantShot remembers the frontmost app, then shows one borderless transparent overlay per
    display. Overlays are created on first use and reused afterwards.
-3. When you release the mouse, only the selected rectangle is captured, with TextPicker's own
+3. When you release the mouse, only the selected rectangle is captured, with InstantShot's own
    windows excluded: `SCContentFilter` excluding the app on macOS, `WDA_EXCLUDEFROMCAPTURE` on
    Windows. The selection is also drawn as a clear hole (dimming and border sit outside it),
    so the captured pixels are never tinted.
@@ -163,7 +163,7 @@ Edges are rounded independently so fractional scales (125%, 150%) don't drift. U
   (Latin, Cyrillic, CJK, Arabic, Thai, Vietnamese, …) but not, for example, Georgian. Windows
   recognizes only languages whose OCR feature is installed; Settings lists what is available.
 - **Shortcut conflicts:** Windows reports shortcuts already registered by other apps. macOS does
-  not, so TextPicker only blocks well-known system shortcuts there.
+  not, so InstantShot only blocks well-known system shortcuts there.
 - A selection can't span two displays (same as the macOS screenshot tool).
 
 ## Distribution
@@ -186,9 +186,9 @@ are unsigned by default. To sign them, add a code-signing certificate following
 downloads the WebView2 runtime if it's missing (Windows 10).
 
 Branding lives in `src-tauri/icons`. The sources are `src-tauri/icons/source/*.svg`; render `app-icon.svg` to a 1024px PNG and run `pnpm tauri icon src-tauri/icons/app-icon.png`, then delete the generated `android/` and `ios/` folders. `tray-template.png` is the 44px render of `tray-template.svg`.
-The bundle identifier `app.textpicker.desktop` and the website link in
+The bundle identifier `app.instantshot.desktop` and the website link in
 `src/components/Settings.tsx` are placeholders.
 
 ## License
 
-TextPicker is free and open source under the [MIT License](LICENSE).
+InstantShot is free and open source under the [MIT License](LICENSE).

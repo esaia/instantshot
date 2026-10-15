@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    textpicker_lib::run()
+    instantshot_lib::run()
 }

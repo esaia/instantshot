@@ -1,4 +1,4 @@
-# Testing TextPicker
+# Testing InstantShot
 
 ## Automated
 
@@ -35,7 +35,7 @@ Status key: ✅ verified on real hardware · ⬜ not yet verified.
 - ⬜ Pressing the shortcut again while selecting cancels
 - ⬜ Cmd-Tab during selection cancels and leaves no overlay behind
 - ⬜ Changed shortcut persists after restart; conflicting shortcut shows an error
-- ⬜ Closing Settings keeps TextPicker running; menu bar *Quit* exits
+- ⬜ Closing Settings keeps InstantShot running; menu bar *Quit* exits
 - ⬜ Launch at Login toggle (Settings and menu) survives logout/login, starts without a window
 - ⬜ Second launch from Finder shows Settings, no second instance
 - ⬜ Capture HUD appears near the bottom of the active display and fades

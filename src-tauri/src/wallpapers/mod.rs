@@ -151,7 +151,7 @@ mod tests {
 
     #[test]
     fn scans_only_full_images_with_thumbnails() {
-        let dir = std::env::temp_dir().join(format!("textpicker-wp-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("instantshot-wp-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(dir.join(".thumbnails")).unwrap();
         std::fs::create_dir_all(dir.join("Solid Colors")).unwrap();

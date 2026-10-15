@@ -79,8 +79,8 @@ export function PermissionBanner({
               Screen Recording permission needed
             </p>
             <p className="mt-0.5 text-[12px] leading-[17px] text-neutral-600 dark:text-neutral-300">
-              TextPicker needs to read the screen region you select. The image is processed on this
-              Mac and never uploaded. Enable TextPicker under{" "}
+              InstantShot needs to read the screen region you select. The image is processed on this Mac
+              and never uploaded. Enable InstantShot under{" "}
               <span className="font-medium">
                 Privacy &amp; Security › Screen &amp; System Audio Recording
               </span>
@@ -100,7 +100,7 @@ export function PermissionBanner({
               </Button>
             )}
             <Button onClick={() => void api.openPermissionSettings()}>Open System Settings</Button>
-            <Button onClick={() => void api.restartApp()}>Relaunch TextPicker</Button>
+            <Button onClick={() => void api.restartApp()}>Relaunch InstantShot</Button>
           </div>
         </div>
       </div>

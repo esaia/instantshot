@@ -205,7 +205,7 @@ pub fn preload(app: &AppHandle) {
 fn build(app: &AppHandle) -> tauri::Result<WebviewWindow> {
     let builder =
         WebviewWindowBuilder::new(app, EDITOR_LABEL, WebviewUrl::App("index.html".into()))
-            .title("TextPicker")
+            .title("InstantShot")
             .inner_size(MIN_SIZE.0, MIN_SIZE.1)
             .min_inner_size(MIN_RESIZE.0, MIN_RESIZE.1)
             .resizable(true)
@@ -271,7 +271,7 @@ fn reveal(app: &AppHandle) {
     });
 }
 
-/// Called when a capture starts (main thread). Activating TextPicker for the selection overlay
+/// Called when a capture starts (main thread). Activating InstantShot for the selection overlay
 /// would pull its windows that sit behind other apps (editor, settings) to the front, so hide
 /// them for the capture.
 pub fn stash_for_capture(app: &AppHandle) {

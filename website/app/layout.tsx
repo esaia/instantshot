@@ -16,7 +16,7 @@ export const metadata: Metadata = {
   description: SITE_DESCRIPTION,
   applicationName: SITE_NAME,
   keywords: [
-    "TextPicker",
+    "InstantShot",
     "screenshot tool",
     "screenshot app",
     "copy text from screen",

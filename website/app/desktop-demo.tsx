@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { PickGlyph } from "./logo";
 
 /**
- * A miniature Mac desktop that behaves like TextPicker: press the shortcut (or drag on the
+ * A miniature Mac desktop that behaves like InstantShot: press the shortcut (or drag on the
  * post or the scanned PDF), select a region, and the words inside really land on the
  * clipboard. The Spotlight-style bar is a real input, so ⌘V pastes them back.
  */
@@ -290,7 +290,7 @@ export function DesktopDemo() {
                 <p className="tweet-text">
                   <Words line="t3" text="Press ⇧⌘2, drag, paste." />
                   <br />
-                  <Words line="t4" text="That’s TextPicker." />
+                  <Words line="t4" text="That’s InstantShot." />
                 </p>
                 <p className="tweet-meta">
                   <Words line="t5" text="3:19 PM · Oct 13, 2026 · 2.4K Views" />

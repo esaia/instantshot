@@ -31,7 +31,7 @@ describe("raw frames", () => {
 describe("file names", () => {
   it("formats like macOS screenshots", () => {
     expect(screenshotFileName(new Date(2026, 9, 4, 9, 5, 7))).toBe(
-      "TextPicker 2026-10-04 at 09.05.07.png",
+      "InstantShot 2026-10-04 at 09.05.07.png",
     );
   });
 });

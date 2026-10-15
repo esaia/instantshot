@@ -47,7 +47,7 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         with:
           tagName: ${{ github.ref_name }}
-          releaseName: TextPicker ${{ github.ref_name }}
+          releaseName: InstantShot ${{ github.ref_name }}
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}

@@ -1,6 +1,6 @@
 //! ScreenCaptureKit one-shot capture (`SCScreenshotManager`, macOS 14+).
 //!
-//! The capture filter excludes TextPicker's own process, so the selection overlay can still be on
+//! The capture filter excludes InstantShot's own process, so the selection overlay can still be on
 //! screen while the region is captured. Completion handlers run on ScreenCaptureKit's queue; all
 //! Objective-C objects stay inside those callbacks and only a plain [`Frame`] crosses threads.
 

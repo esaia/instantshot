@@ -256,8 +256,8 @@ mod tests {
     #[test]
     fn decodes_uri_components() {
         assert_eq!(
-            percent_decode("TextPicker%202026-10-14%20at%2015.04.12.png"),
-            "TextPicker 2026-10-14 at 15.04.12.png"
+            percent_decode("InstantShot%202026-10-14%20at%2015.04.12.png"),
+            "InstantShot 2026-10-14 at 15.04.12.png"
         );
         assert_eq!(percent_decode("%E1%83%90.png"), "ა.png");
         assert_eq!(percent_decode("100%"), "100%");
@@ -266,7 +266,7 @@ mod tests {
 
     #[test]
     fn unique_paths_append_numbers() {
-        let dir = std::env::temp_dir().join(format!("textpicker-export-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("instantshot-export-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         assert_eq!(unique_path(&dir, "a.png"), dir.join("a.png"));

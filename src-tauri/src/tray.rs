@@ -29,7 +29,7 @@ pub fn create(app: &AppHandle) -> tauri::Result<()> {
     let menu = Menu::with_items(
         app,
         &[
-            &MenuItem::with_id(app, "title", "TextPicker", false, None::<&str>)?,
+            &MenuItem::with_id(app, "title", "InstantShot", false, None::<&str>)?,
             &PredefinedMenuItem::separator(app)?,
             &MenuItem::with_id(app, CAPTURE, "Capture Text", true, None::<&str>)?,
             &MenuItem::with_id(
@@ -43,13 +43,13 @@ pub fn create(app: &AppHandle) -> tauri::Result<()> {
             &PredefinedMenuItem::separator(app)?,
             &login,
             &PredefinedMenuItem::separator(app)?,
-            &MenuItem::with_id(app, QUIT, "Quit TextPicker", true, None::<&str>)?,
+            &MenuItem::with_id(app, QUIT, "Quit InstantShot", true, None::<&str>)?,
         ],
     )?;
     app.manage(LoginItem(login));
 
     let mut builder = TrayIconBuilder::with_id("main")
-        .tooltip("TextPicker")
+        .tooltip("InstantShot")
         .menu(&menu)
         .show_menu_on_left_click(true)
         .on_menu_event(|app, event| match event.id().as_ref() {

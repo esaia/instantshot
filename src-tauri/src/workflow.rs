@@ -70,7 +70,7 @@ impl Outcome {
         matches!(self, Outcome::Completed { .. } | Outcome::ImageCopied)
     }
 
-    /// Whether focus should stay with TextPicker instead of returning to the previous app.
+    /// Whether focus should stay with InstantShot instead of returning to the previous app.
     pub fn keeps_focus(&self) -> bool {
         matches!(self, Outcome::EditorOpened)
     }

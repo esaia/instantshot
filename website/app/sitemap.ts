@@ -13,10 +13,10 @@ export default function sitemap(): MetadataRoute.Sitemap {
       images: [`${SITE_URL}/media/editor-demo.jpg`, `${SITE_URL}/media/step-select.jpg`],
       videos: [
         {
-          title: "Editing a screenshot in TextPicker",
+          title: "Editing a screenshot in InstantShot",
           thumbnail_loc: `${SITE_URL}/media/editor-demo.jpg`,
           description:
-            "A screenshot is selected, marked up with arrows and text, and placed on a wallpaper in the TextPicker editor.",
+            "A screenshot is selected, marked up with arrows and text, and placed on a wallpaper in the InstantShot editor.",
           content_loc: `${SITE_URL}/media/editor-demo.mp4`,
         },
       ],

@@ -6,6 +6,6 @@
   <key>LSUIElement</key>
   <true/>
   <key>NSScreenCaptureUsageDescription</key>
-  <string>TextPicker reads the screen region you select so it can recognize text locally on your Mac.</string>
+  <string>InstantShot reads the screen region you select so it can recognize text locally on your Mac.</string>
 </dict>
 </plist>

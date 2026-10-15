@@ -40,7 +40,7 @@ export function EditorVideo() {
         poster="/media/editor-demo.jpg?v=2"
         width={1600}
         height={924}
-        aria-label="Selecting part of a page, drawing arrows on it, choosing a size and placing it on a wallpaper in the TextPicker editor"
+        aria-label="Selecting part of a page, drawing arrows on it, choosing a size and placing it on a wallpaper in the InstantShot editor"
       >
         <source src="/media/editor-demo.webm?v=2" type="video/webm" />
         <source src="/media/editor-demo.mp4?v=2" type="video/mp4" />

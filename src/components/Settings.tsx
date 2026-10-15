@@ -7,7 +7,7 @@ import { PermissionBanner, PermissionChip, usePermissionState } from "./Permissi
 import { Keys, ShortcutInput } from "./ShortcutInput";
 import { Button, Notice, Row, RowIcon, Section, Toggle } from "./ui";
 
-const GITHUB_URL = "https://github.com/esaia/textpicker";
+const GITHUB_URL = "https://github.com/esaia/instantshot";
 const WEBSITE_URL = "https://textpicker.app";
 
 export function Settings() {
@@ -36,7 +36,7 @@ export function Settings() {
         <AppIcon />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-[17px] font-semibold leading-6 tracking-[-0.01em]">TextPicker</h1>
+            <h1 className="text-[17px] font-semibold leading-6 tracking-[-0.01em]">InstantShot</h1>
             <span className="rounded-full bg-black/[0.05] px-1.5 py-px text-[10.5px] font-medium tabular-nums text-neutral-500 dark:bg-white/[0.08] dark:text-neutral-400">
               v{info.version}
             </span>
@@ -173,7 +173,7 @@ export function Settings() {
         </Row>
         <Row
           label="Start minimized"
-          hint={`Don't open this window at launch. Find TextPicker in the ${trayName}.`}
+          hint={`Don't open this window at launch. Find InstantShot in the ${trayName}.`}
           htmlFor="minimized"
           icon={
             <RowIcon tint="indigo">

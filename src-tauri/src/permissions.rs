@@ -29,7 +29,7 @@ pub fn screen_capture() -> PermissionState {
 }
 
 /// Shows the system prompt the first time; afterwards macOS only records the request and the
-/// user must enable TextPicker in System Settings (and usually relaunch it).
+/// user must enable InstantShot in System Settings (and usually relaunch it).
 #[cfg(target_os = "macos")]
 pub fn request_screen_capture() -> bool {
     objc2_core_graphics::CGRequestScreenCaptureAccess()
