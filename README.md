@@ -58,21 +58,21 @@ itself from GitHub releases, asking before it installs.
 <table>
   <tr>
     <td width="50%" valign="top">
-      <img src="website/public/media/step-select.jpg" alt="A selection over part of a page with its size, handles, and arrow, shape, color, Copy and Edit buttons below it" />
+      <img src="website/public/media/step-select.webp" alt="A selection over part of a page with its size, handles, and arrow, shape, color, Copy and Edit buttons below it" />
       <p><b>Select.</b> Drag over anything, then adjust the edges. The screen freezes, so even a playing video holds still. Draw right away, copy, or press Edit.</p>
     </td>
     <td width="50%" valign="top">
-      <img src="website/public/media/step-annotate.jpg" alt="The InstantShot editor showing the screenshot on a soft wallpaper, with the wallpaper picker on the right" />
+      <img src="website/public/media/step-annotate.webp" alt="The InstantShot editor showing the screenshot on a soft wallpaper, with the wallpaper picker on the right" />
       <p><b>Make it beautiful.</b> Drop it on a wallpaper, gradient or color. Add arrows, boxes, text and blur.</p>
     </td>
   </tr>
   <tr>
     <td width="50%" valign="top">
-      <img src="website/public/media/step-layout.jpg" alt="The Layout tab with window styles None, Light and Dark, and size presets from Auto to 4:5" />
+      <img src="website/public/media/step-layout.webp" alt="The Layout tab with window styles None, Light and Dark, and size presets from Auto to 4:5" />
       <p><b>Fit where it’s going.</b> Add a window bar and pick a size: square for a post, 16:9 for slides, 9:16 for a story. Then press ⌘C.</p>
     </td>
     <td width="50%" valign="top">
-      <img src="website/public/media/editor-demo.jpg" alt="A finished screenshot in a macOS window frame on a blue wallpaper" />
+      <img src="website/public/media/editor-demo.webp" alt="A finished screenshot in a macOS window frame on a blue wallpaper" />
       <p><b>Ready to share.</b> Copy it, save it, or drag it straight into Slack, Figma, a doc or a tweet.</p>
     </td>
   </tr>

@@ -56,7 +56,7 @@ const steps = [
 
 const shots = [
   {
-    src: "/media/step-select.jpg?v=2",
+    src: "/media/step-select.webp",
     width: 1400,
     height: 1084,
     alt: "A selection over part of a page with its size, handles, and arrow, shape, color, Copy and Edit buttons below it",
@@ -64,7 +64,7 @@ const shots = [
     body: "Drag over anything, then adjust the edges. The screen freezes, so even a playing video holds still. Draw right away, copy, or press Edit.",
   },
   {
-    src: "/media/step-annotate.jpg?v=2",
+    src: "/media/step-annotate.webp",
     width: 1400,
     height: 988,
     alt: "The InstantShot editor showing the screenshot on a soft wallpaper, with the wallpaper picker on the right",
@@ -72,7 +72,7 @@ const shots = [
     body: "Drop it on a wallpaper, gradient or color. Add arrows, boxes, text and blur; every shape can be moved, resized and rotated.",
   },
   {
-    src: "/media/step-layout.jpg?v=2",
+    src: "/media/step-layout.webp",
     width: 754,
     height: 760,
     alt: "The Layout tab with window styles None, Light and Dark, and size presets from Auto to 4:5",
@@ -147,7 +147,7 @@ const jsonLd = {
       applicationCategory: "UtilitiesApplication",
       operatingSystem: "macOS 14 or later, Windows 10, Windows 11",
       downloadUrl: RELEASES,
-      image: `${SITE_URL}/media/editor-demo.jpg`,
+      image: `${SITE_URL}/media/editor-demo.webp`,
       screenshot: shots.map((s) => `${SITE_URL}${s.src.split("?")[0]}`),
       license: "https://opensource.org/licenses/MIT",
       isAccessibleForFree: true,
@@ -335,7 +335,7 @@ export default function Home() {
           </div>
           <img
             className="settings-shot"
-            src="/media/settings.png"
+            src="/media/settings.webp"
             alt="The InstantShot Settings window: shortcuts for capturing text and screenshots, a quick save folder, launch at login, copy confirmation, start minimized, and text recognition options"
             width={1062}
             height={1588}
@@ -359,7 +359,7 @@ export default function Home() {
         <section className="maker" aria-labelledby="maker-title">
           <div className="maker-card">
             <div className="maker-photo">
-              <img src="/esaia-avatar-lg.jpg" alt="Esaia" width={160} height={160} />
+              <img src="/esaia-avatar-lg.webp" alt="Esaia" width={160} height={160} />
               <PickLogo className="maker-badge" />
             </div>
             <div className="maker-copy">

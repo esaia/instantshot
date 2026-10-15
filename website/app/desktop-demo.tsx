@@ -266,7 +266,7 @@ export function DesktopDemo() {
           <div className="shot" onPointerDown={beginDrag}>
             <article className="tweet" aria-label="Screenshot of a post on X">
                 <header className="tweet-head">
-                  <img className="tweet-avatar" src="/esaia-avatar.jpg" alt="" draggable={false} />
+                  <img className="tweet-avatar" src="/esaia-avatar.webp" alt="" draggable={false} />
                   <span className="tweet-who">
                     <strong>
                       <Words line="t0" text="Esaia" />

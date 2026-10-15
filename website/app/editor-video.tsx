@@ -37,7 +37,7 @@ export function EditorVideo() {
         playsInline
         preload="metadata"
         controls={still}
-        poster="/media/editor-demo.jpg?v=2"
+        poster="/media/editor-demo.webp"
         width={1600}
         height={924}
         aria-label="Selecting part of a page, drawing arrows on it, choosing a size and placing it on a wallpaper in the InstantShot editor"

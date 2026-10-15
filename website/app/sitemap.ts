@@ -10,11 +10,11 @@ export default function sitemap(): MetadataRoute.Sitemap {
       lastModified: new Date(),
       changeFrequency: "monthly",
       priority: 1,
-      images: [`${SITE_URL}/media/editor-demo.jpg`, `${SITE_URL}/media/step-select.jpg`],
+      images: [`${SITE_URL}/media/editor-demo.webp`, `${SITE_URL}/media/step-select.webp`],
       videos: [
         {
           title: "Editing a screenshot in InstantShot",
-          thumbnail_loc: `${SITE_URL}/media/editor-demo.jpg`,
+          thumbnail_loc: `${SITE_URL}/media/editor-demo.webp`,
           description:
             "A screenshot is selected, marked up with arrows and text, and placed on a wallpaper in the InstantShot editor.",
           content_loc: `${SITE_URL}/media/editor-demo.mp4`,
