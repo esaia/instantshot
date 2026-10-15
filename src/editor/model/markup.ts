@@ -21,7 +21,18 @@ export function markupToAnnotations(items: unknown, scale: number): Annotation[]
     if (typeof a !== "object" || a === null) continue;
     if (!str(a.id) || !str(a.color) || !num(a.width) || a.width <= 0) continue;
     const base = { id: a.id, color: a.color, width: a.width * s };
-    if (a.type === "arrow" && isPoint(a.from) && isPoint(a.to)) {
+    if (
+      a.type === "pen" &&
+      Array.isArray(a.points) &&
+      a.points.length > 0 &&
+      a.points.every(isPoint)
+    ) {
+      out.push({
+        ...base,
+        type: "pen",
+        points: a.points.map((p: Point) => ({ x: p.x * s, y: p.y * s })),
+      });
+    } else if (a.type === "arrow" && isPoint(a.from) && isPoint(a.to)) {
       out.push({
         ...base,
         type: "arrow",

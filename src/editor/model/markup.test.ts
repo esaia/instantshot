@@ -23,6 +23,39 @@ describe("markupToAnnotations", () => {
     ]);
   });
 
+  it("scales freehand strokes point by point", () => {
+    const out = markupToAnnotations(
+      [
+        {
+          id: "p",
+          type: "pen",
+          color: "#00f",
+          width: 5,
+          points: [
+            { x: 1, y: 1 },
+            { x: 4, y: 2 },
+          ],
+        },
+      ],
+      2,
+    );
+    expect(out).toEqual([
+      {
+        id: "p",
+        type: "pen",
+        color: "#00f",
+        width: 10,
+        points: [
+          { x: 2, y: 2 },
+          { x: 8, y: 4 },
+        ],
+      },
+    ]);
+    expect(
+      markupToAnnotations([{ id: "q", type: "pen", color: "#00f", width: 5, points: [] }], 1),
+    ).toEqual([]);
+  });
+
   it("drops malformed entries", () => {
     expect(markupToAnnotations("nope", 2)).toEqual([]);
     expect(

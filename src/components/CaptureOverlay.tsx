@@ -13,9 +13,16 @@ const MIN_SELECTION = 4;
 /** Shorter drags than this (CSS px) don't leave a shape behind. */
 const MIN_SHAPE = 3;
 
-type DrawTool = "arrow" | "rect" | "ellipse";
+type DrawTool = "pen" | "arrow" | "rect" | "ellipse";
+type ShapeTool = Exclude<DrawTool, "pen">;
 
 const DRAW_TOOLS: { id: DrawTool; label: string; key: string; icon: ReactNode }[] = [
+  {
+    id: "pen",
+    label: "Draw",
+    key: "D",
+    icon: <path d="M3.5 14.5c1.8-2.6 3.3-7 5.3-7 1.8 0 .6 5 2.6 5 1.6 0 2.5-3 5.1-6.5" />,
+  },
   { id: "arrow", label: "Arrow", key: "A", icon: <path d="M4.5 15.5 15 5M8.5 5H15v6.5" /> },
   {
     id: "rect",
@@ -30,13 +37,13 @@ const DRAW_TOOLS: { id: DrawTool; label: string; key: string; icon: ReactNode }[
     icon: <ellipse cx="10" cy="10" rx="6.5" ry="5.5" />,
   },
 ];
-const TOOL_KEYS: Record<string, DrawTool> = { a: "arrow", r: "rect", o: "ellipse" };
+const TOOL_KEYS: Record<string, DrawTool> = { d: "pen", a: "arrow", r: "rect", o: "ellipse" };
 
 let nextShape = 0;
 
 /** A shape from a drag, in window-local CSS px (the same space as the selection). */
 function shapeFrom(
-  tool: DrawTool,
+  tool: ShapeTool,
   color: string,
   x0: number,
   y0: number,
@@ -118,7 +125,9 @@ const HANDLE_CURSOR: Record<Handle, string> = {
 
 type Gesture =
   | { kind: "draw"; x0: number; y0: number }
-  | { kind: "shape"; tool: DrawTool; x0: number; y0: number }
+  | { kind: "shape"; tool: ShapeTool; x0: number; y0: number }
+  /** Freehand stroke; points are collected here so fast drags never drop any. */
+  | { kind: "pen"; shape: Annotation & { type: "pen" } }
   | { kind: "move"; x0: number; y0: number; original: SelectionRect }
   | { kind: "resize"; handle: Handle; original: SelectionRect };
 
@@ -306,7 +315,17 @@ export function CaptureOverlay() {
     const handle = adjusting && rect ? handleAt(rect, x, y) : null;
     if (adjusting && rect && handle) {
       gesture.current = { kind: "resize", handle, original: rect };
-    } else if (adjusting && rect && tool) {
+    } else if (adjusting && rect && tool === "pen") {
+      const shape = {
+        id: `o${nextShape++}`,
+        type: "pen" as const,
+        points: [{ x, y }],
+        color,
+        width: STROKE_WIDTHS[1],
+      };
+      gesture.current = { kind: "pen", shape };
+      setDraft(shape);
+    } else if (adjusting && rect && tool && tool !== "pen") {
       gesture.current = { kind: "shape", tool, x0: x, y0: y };
       setDraft(shapeFrom(tool, color, x, y, x, y));
     } else if (adjusting && rect && inside(rect, x, y)) {
@@ -336,7 +355,13 @@ export function CaptureOverlay() {
       }
       return;
     }
-    if (g.kind === "shape") setDraft(shapeFrom(g.tool, color, g.x0, g.y0, x, y));
+    if (g.kind === "pen") {
+      const { points } = g.shape;
+      const last = points[points.length - 1];
+      if (Math.hypot(x - last.x, y - last.y) < 1.5) return;
+      g.shape = { ...g.shape, points: [...points, { x, y }] };
+      setDraft(g.shape);
+    } else if (g.kind === "shape") setDraft(shapeFrom(g.tool, color, g.x0, g.y0, x, y));
     else if (g.kind === "draw") setRect(rectFrom(g.x0, g.y0, x, y));
     else if (g.kind === "move") setRect(moved(g.original, x - g.x0, y - g.y0));
     else setRect(resized(g.original, g.handle, x, y));
@@ -348,6 +373,13 @@ export function CaptureOverlay() {
     if (!g) return;
     const x = clampX(e.clientX);
     const y = clampY(e.clientY);
+    if (g.kind === "pen") {
+      setDraft(null);
+      // A click without dragging leaves a dot.
+      const shape = g.shape;
+      setShapes((list) => [...list, shape]);
+      return;
+    }
     if (g.kind === "shape") {
       setDraft(null);
       if (Math.hypot(x - g.x0, y - g.y0) >= MIN_SHAPE) {
