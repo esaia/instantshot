@@ -128,6 +128,7 @@ export const previewApi = {
   ocrLanguageStatus: () =>
     resolve<LanguageStatus>({ available: true, languages: ["en-US", "fr-FR", "de-DE", "ja-JP"] }),
   restartApp: () => resolve<void>(undefined),
+  checkForUpdates: () => resolve<void>(undefined),
 
   editorImage: () => resolve(encodeRawFrame(sampleScreenshot())),
   editorMarkup: () => resolve<unknown[]>([]),

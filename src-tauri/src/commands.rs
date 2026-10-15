@@ -347,6 +347,12 @@ pub fn restart_app(app: AppHandle) {
     app.restart();
 }
 
+/// Checks for a new version; the outcome is shown in native dialogs.
+#[tauri::command]
+pub fn check_for_updates(app: AppHandle) {
+    crate::updater::check_now(&app);
+}
+
 fn os_description() -> String {
     #[cfg(target_os = "macos")]
     {

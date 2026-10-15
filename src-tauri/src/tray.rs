@@ -11,6 +11,7 @@ const CAPTURE: &str = "capture";
 const CAPTURE_SCREENSHOT: &str = "capture-screenshot";
 const SETTINGS: &str = "settings";
 const LOGIN: &str = "launch-at-login";
+const UPDATES: &str = "check-for-updates";
 const QUIT: &str = "quit";
 
 /// Kept in managed state so the checkbox can be updated when Settings changes it.
@@ -42,6 +43,7 @@ pub fn create(app: &AppHandle) -> tauri::Result<()> {
             &MenuItem::with_id(app, SETTINGS, "Settings…", true, None::<&str>)?,
             &PredefinedMenuItem::separator(app)?,
             &login,
+            &MenuItem::with_id(app, UPDATES, "Check for Updates…", true, None::<&str>)?,
             &PredefinedMenuItem::separator(app)?,
             &MenuItem::with_id(app, QUIT, "Quit InstantShot", true, None::<&str>)?,
         ],
@@ -62,6 +64,7 @@ pub fn create(app: &AppHandle) -> tauri::Result<()> {
                     log::error!("launch at login: {err}");
                 }
             }
+            UPDATES => crate::updater::check_now(app),
             QUIT => app.exit(0),
             _ => {}
         });

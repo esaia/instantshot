@@ -53,6 +53,7 @@ const tauriApi = {
   openPermissionSettings: () => invoke<void>("open_permission_settings"),
   ocrLanguageStatus: () => invoke<LanguageStatus>("ocr_language_status"),
   restartApp: () => invoke<void>("restart_app"),
+  checkForUpdates: () => invoke<void>("check_for_updates"),
 
   // Screenshot editor. Images travel as raw bytes, never JSON.
   editorImage: () => invoke<ArrayBuffer>("editor_image"),

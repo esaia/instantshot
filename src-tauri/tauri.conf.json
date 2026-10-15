@@ -49,6 +49,16 @@
     "windows": {
       "webviewInstallMode": { "type": "downloadBootstrapper" },
       "nsis": { "installMode": "currentUser" }
+    },
+    "createUpdaterArtifacts": true
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEJFRUJDNEM4MTNCNDJGNTQKUldSVUw3UVR5TVRydnJ6SDVBWFh6SmIxUE1Ydjg3b3RlQ0JlNVhwT0RkMk5ib0JidmpPQSt1eE8K",
+      "endpoints": [
+        "https://github.com/esaia/instantshot/releases/latest/download/latest.json"
+      ],
+      "windows": { "installMode": "passive" }
     }
   }
 }

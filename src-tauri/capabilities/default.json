@@ -29,6 +29,7 @@
     "allow-request-permission",
     "allow-ocr-language-status",
     "allow-open-permission-settings",
-    "allow-restart-app"
+    "allow-restart-app",
+    "allow-check-for-updates"
   ]
 }

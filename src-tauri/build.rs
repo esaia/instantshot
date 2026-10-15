@@ -24,6 +24,7 @@ const COMMANDS: &[&str] = &[
     "ocr_language_status",
     "open_permission_settings",
     "restart_app",
+    "check_for_updates",
     // Screenshot editor window
     "editor_image",
     "editor_markup",

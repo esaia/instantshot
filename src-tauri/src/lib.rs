@@ -13,6 +13,7 @@ mod permissions;
 mod settings;
 mod shortcuts;
 mod tray;
+mod updater;
 mod wallpapers;
 mod workflow;
 
@@ -78,6 +79,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         // Used from Rust only (save panel, folder picker); the pages get no dialog permissions.
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(CaptureController::default())
         .manage(SettingsState::default())
         .manage(ShortcutPaused::default())
@@ -105,6 +107,7 @@ pub fn run() {
             commands::ocr_language_status,
             commands::open_permission_settings,
             commands::restart_app,
+            commands::check_for_updates,
             commands::editor_image,
             commands::editor_markup,
             commands::editor_ready,
@@ -128,6 +131,7 @@ pub fn run() {
             register_screenshot_shortcut(&handle, &mut settings);
             tray::create(&handle)?;
             export::clear_drag_dir(&handle);
+            updater::start(&handle);
             // Load the editor page in the background so the first screenshot opens instantly.
             let preload_handle = handle.clone();
             tauri::async_runtime::spawn(async move {

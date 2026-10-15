@@ -36,6 +36,7 @@ jobs:
       # All signing material comes from repository secrets; nothing is committed.
       # macOS: Developer ID Application certificate (.p12, base64) + notarization credentials.
       # Windows: unsigned unless you add a certificate (see README › Distribution).
+      # Updater: TAURI_SIGNING_PRIVATE_KEY signs the update bundles; latest.json is attached too.
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -45,9 +46,12 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: InstantShot ${{ github.ref_name }}
+          releaseBody: See the assets below to download and install this version.
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}

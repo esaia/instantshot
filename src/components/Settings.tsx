@@ -253,6 +253,17 @@ export function Settings() {
           <span className="text-[12px] text-neutral-500 dark:text-neutral-400">{info.os}</span>
         </Row>
         <Row
+          label="Updates"
+          hint="InstantShot checks for new versions once a day and asks before installing."
+          icon={
+            <RowIcon tint="blue">
+              <path d="M13 8a5 5 0 1 1-1.5-3.5M13 2.5V5h-2.5" />
+            </RowIcon>
+          }
+        >
+          <Button onClick={() => void api.checkForUpdates()}>Check for Updates</Button>
+        </Row>
+        <Row
           label="Links"
           icon={
             <RowIcon tint="blue">
