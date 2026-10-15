@@ -3,7 +3,16 @@ import { DesktopDemo } from "./desktop-demo";
 import { EditorVideo } from "./editor-video";
 import { HeroCapture } from "./hero-capture";
 import { PickLogo } from "./logo";
-import { GITHUB, RELEASES, SITE_DESCRIPTION, SITE_NAME, SITE_URL, X_PROFILE } from "./site";
+import {
+  GITHUB,
+  MAC_DOWNLOAD,
+  RELEASES,
+  SITE_DESCRIPTION,
+  SITE_NAME,
+  SITE_URL,
+  WINDOWS_DOWNLOAD,
+  X_PROFILE,
+} from "./site";
 
 function AppleLogo() {
   return (
@@ -161,10 +170,10 @@ const jsonLd = {
 function Downloads() {
   return (
     <div className="downloads">
-      <a className="button button-primary" href={RELEASES}>
+      <a className="button button-primary" href={MAC_DOWNLOAD}>
         <AppleLogo /> Download for Mac
       </a>
-      <a className="button button-ghost" href={RELEASES}>
+      <a className="button button-ghost" href={WINDOWS_DOWNLOAD}>
         <WindowsLogo /> Windows
       </a>
     </div>

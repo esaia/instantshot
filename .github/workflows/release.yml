@@ -59,7 +59,7 @@ jobs:
       # Tauri notarizes the app but not the .dmg around it; notarize and staple that too, then
       # replace the release asset so the download itself passes Gatekeeper offline.
       - name: Notarize DMG
-        if: matrix.platform == 'macos-latest' && env.APPLE_PASSWORD != ''
+        if: matrix.platform == 'macos-latest'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
@@ -71,3 +71,18 @@ jobs:
             --password "$APPLE_PASSWORD" --wait
           xcrun stapler staple "$dmg"
           gh release upload "${{ github.ref_name }}" "$dmg" --clobber
+
+      # Same installers under names without the version, so the website can link to
+      # releases/latest/download/InstantShot.dmg and …/InstantShot-Setup.exe.
+      - name: Attach stable download names
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            cp src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg InstantShot.dmg
+            gh release upload "${{ github.ref_name }}" InstantShot.dmg --clobber
+          else
+            cp src-tauri/target/release/bundle/nsis/*-setup.exe InstantShot-Setup.exe
+            gh release upload "${{ github.ref_name }}" InstantShot-Setup.exe --clobber
+          fi
