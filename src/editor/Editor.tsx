@@ -20,7 +20,7 @@ const isMac = navigator.userAgent.includes("Mac");
 /** Pointer travel before a press on the drag handle becomes a drag, CSS px. */
 const DRAG_THRESHOLD = 4;
 /** Idle time after an edit before the export is pre-rendered for instant copy/drag. */
-const PRERENDER_DELAY = 350;
+const PRERENDER_DELAY = 600;
 const STYLE_SAVE_DELAY = 500;
 
 interface Toast {

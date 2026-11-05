@@ -83,7 +83,7 @@ function rgba(hex: string, alpha: number): string {
  * which gives a smooth Gaussian blur in every engine.
  */
 export function paintMesh(
-  ctx: CanvasRenderingContext2D,
+  ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
   w: number,
   h: number,
   preset: WallpaperPreset,

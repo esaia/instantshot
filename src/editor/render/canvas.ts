@@ -1,3 +1,5 @@
+import { pngOffThread } from "./offthread";
+
 /** A detached canvas. Only called at render time, so modules importing this stay testable. */
 export function makeCanvas(width: number, height: number): HTMLCanvasElement {
   const canvas = document.createElement("canvas");
@@ -12,7 +14,13 @@ export function context2d(canvas: HTMLCanvasElement): CanvasRenderingContext2D {
   return ctx;
 }
 
-export function canvasToPng(canvas: HTMLCanvasElement): Promise<Uint8Array> {
+/** PNG bytes; encoded in a worker when possible, since encoding blocks for hundreds of ms. */
+export async function canvasToPng(canvas: HTMLCanvasElement): Promise<Uint8Array> {
+  const bytes = await pngOffThread(canvas).catch(() => null);
+  return bytes ?? encodeHere(canvas);
+}
+
+function encodeHere(canvas: HTMLCanvasElement): Promise<Uint8Array> {
   return new Promise((resolve, reject) => {
     canvas.toBlob((blob) => {
       if (!blob) {
