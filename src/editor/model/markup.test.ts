@@ -56,13 +56,63 @@ describe("markupToAnnotations", () => {
     ).toEqual([]);
   });
 
+  it("keeps redactions and text, scaling the font size", () => {
+    const out = markupToAnnotations(
+      [
+        { id: "b", type: "blur", color: "#f00", width: 3, x: 1, y: 2, w: 3, h: 4 },
+        { id: "p", type: "pixelate", color: "#f00", width: 3, x: 1, y: 2, w: 3, h: 4 },
+        {
+          id: "t",
+          type: "text",
+          color: "#fff",
+          width: 3,
+          x: 1,
+          y: 2,
+          w: 30,
+          h: 20,
+          text: "Hi",
+          size: 16,
+        },
+        {
+          id: "e",
+          type: "text",
+          color: "#fff",
+          width: 3,
+          x: 1,
+          y: 2,
+          w: 30,
+          h: 20,
+          text: "",
+          size: 16,
+        },
+      ],
+      2,
+    );
+    expect(out).toEqual([
+      { id: "b", type: "blur", color: "#f00", width: 6, x: 2, y: 4, w: 6, h: 8 },
+      { id: "p", type: "pixelate", color: "#f00", width: 6, x: 2, y: 4, w: 6, h: 8 },
+      {
+        id: "t",
+        type: "text",
+        color: "#fff",
+        width: 6,
+        x: 2,
+        y: 4,
+        w: 60,
+        h: 40,
+        text: "Hi",
+        size: 32,
+      },
+    ]);
+  });
+
   it("drops malformed entries", () => {
     expect(markupToAnnotations("nope", 2)).toEqual([]);
     expect(
       markupToAnnotations(
         [
           null,
-          { id: "x", type: "blur", color: "#f00", width: 4, x: 0, y: 0, w: 1, h: 1 },
+          { id: "x", type: "star", color: "#f00", width: 4, x: 0, y: 0, w: 1, h: 1 },
           { id: "y", type: "rect", color: "#f00", width: 4, x: "0", y: 0, w: 1, h: 1 },
           {
             id: "z",

@@ -1,10 +1,13 @@
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { translate } from "../editor/interaction/handles";
+import { type TextDraft, TextEditor } from "../editor/interaction/TextEditor";
 import { decodeRawFrame } from "../editor/lib/rawFrame";
-import { INK_COLORS, STROKE_WIDTHS } from "../editor/model/editorReducer";
-import type { Annotation } from "../editor/model/types";
-import { drawAnnotation } from "../editor/render/annotations";
+import { INK_COLORS, STROKE_WIDTHS, textSize } from "../editor/model/editorReducer";
+import type { Annotation, Point } from "../editor/model/types";
+import { drawAnnotation, measureText } from "../editor/render/annotations";
+import { intersect } from "../editor/render/geometry";
+import { drawRedacted } from "../editor/render/redact";
 import { api, onEvent } from "../lib/tauri";
 import type { CaptureMode, FinishAction, Markup, SelectionRect } from "../lib/types";
 
@@ -13,8 +16,12 @@ const MIN_SELECTION = 4;
 /** Shorter drags than this (CSS px) don't leave a shape behind. */
 const MIN_SHAPE = 3;
 
-type DrawTool = "pen" | "arrow" | "rect" | "ellipse";
-type ShapeTool = Exclude<DrawTool, "pen">;
+type DrawTool = "pen" | "arrow" | "rect" | "ellipse" | "text" | "blur" | "pixelate";
+/** Tools that drag out a shape from corner to corner. */
+type ShapeTool = Exclude<DrawTool, "pen" | "text">;
+
+const isRedaction = (a: Annotation): a is Annotation & { type: "blur" | "pixelate" } =>
+  a.type === "blur" || a.type === "pixelate";
 
 const DRAW_TOOLS: { id: DrawTool; label: string; key: string; icon: ReactNode }[] = [
   {
@@ -36,33 +43,61 @@ const DRAW_TOOLS: { id: DrawTool; label: string; key: string; icon: ReactNode }[
     key: "O",
     icon: <ellipse cx="10" cy="10" rx="6.5" ry="5.5" />,
   },
+  { id: "text", label: "Text", key: "T", icon: <path d="M5 5.5V4h10v1.5M10 4v12M8 16h4" /> },
+  {
+    id: "blur",
+    label: "Blur",
+    key: "B",
+    icon: <path d="M10 3.5s5 5.2 5 8.4a5 5 0 0 1-10 0c0-3.2 5-8.4 5-8.4Z" />,
+  },
+  {
+    id: "pixelate",
+    label: "Pixelate",
+    key: "P",
+    icon: <path d="M4 4h4v4H4zM12 4h4v4h-4zM8 8h4v4H8zM4 12h4v4H4zM12 12h4v4h-4z" />,
+  },
 ];
-const TOOL_KEYS: Record<string, DrawTool> = { d: "pen", a: "arrow", r: "rect", o: "ellipse" };
+const TOOL_KEYS: Record<string, DrawTool> = {
+  d: "pen",
+  a: "arrow",
+  r: "rect",
+  o: "ellipse",
+  t: "text",
+  b: "blur",
+  p: "pixelate",
+};
+const WIDTH_NAMES = ["Thin", "Medium", "Thick"];
 
 let nextShape = 0;
+const shapeId = () => `o${nextShape++}`;
 
 /** A shape from a drag, in window-local CSS px (the same space as the selection). */
 function shapeFrom(
   tool: ShapeTool,
   color: string,
+  width: number,
   x0: number,
   y0: number,
   x1: number,
   y1: number,
 ): Annotation {
-  const base = { id: `o${nextShape++}`, color, width: STROKE_WIDTHS[1] };
+  const base = { id: shapeId(), color, width };
   if (tool === "arrow")
     return { ...base, type: "arrow", from: { x: x0, y: y0 }, to: { x: x1, y: y1 } };
   const r = rectFrom(x0, y0, x1, y1);
   return { ...base, type: tool, x: r.x, y: r.y, w: r.width, h: r.height };
 }
 
-/** Draws `shapes` clipped to `clip`, with CSS px mapped to `scale` device pixels. */
+/**
+ * Draws `shapes` clipped to `clip`, with CSS px mapped to `scale` device pixels. Blur and
+ * pixelate are cut from the frozen screen and go under the strokes, as in the editor.
+ */
 function paintShapes(
   ctx: CanvasRenderingContext2D,
   shapes: Annotation[],
   clip: SelectionRect,
   scale: number,
+  frozen: HTMLCanvasElement | null,
   origin = { x: 0, y: 0 },
 ) {
   ctx.setTransform(scale, 0, 0, scale, -origin.x * scale, -origin.y * scale);
@@ -70,7 +105,19 @@ function paintShapes(
   ctx.beginPath();
   ctx.rect(clip.x, clip.y, clip.width, clip.height);
   ctx.clip();
-  for (const shape of shapes) drawAnnotation(ctx, shape);
+  if (frozen) {
+    // Frame pixels per CSS px (the frame is the display at native resolution).
+    const k = frozen.width / window.innerWidth;
+    const bounds = { x: clip.x, y: clip.y, w: clip.width, h: clip.height };
+    for (const shape of shapes) {
+      if (!isRedaction(shape)) continue;
+      const region = intersect(shape, bounds);
+      if (!region || region.w < 1 || region.h < 1) continue;
+      const src = { x: region.x * k, y: region.y * k, w: region.w * k, h: region.h * k };
+      drawRedacted(ctx, frozen, src, region, shape.type, k);
+    }
+  }
+  for (const shape of shapes) if (!isRedaction(shape)) drawAnnotation(ctx, shape);
   ctx.restore();
 }
 
@@ -91,6 +138,7 @@ async function markupFor(
   shapes: Annotation[],
   selection: SelectionRect,
   action: FinishAction,
+  frozen: HTMLCanvasElement | null,
 ): Promise<Markup | undefined> {
   if (shapes.length === 0) return undefined;
   const annotations = shapes.map((a) => translate(a, -selection.x, -selection.y));
@@ -101,7 +149,7 @@ async function markupFor(
   canvas.height = Math.max(1, Math.round(selection.height * scale));
   const ctx = canvas.getContext("2d");
   if (!ctx) return { annotations };
-  paintShapes(ctx, shapes, selection, scale, selection);
+  paintShapes(ctx, shapes, selection, scale, frozen, selection);
   const blob = await new Promise<Blob | null>((done) => canvas.toBlob(done, "image/png"));
   if (!blob) return { annotations };
   return { annotations, layer: Array.from(new Uint8Array(await blob.arrayBuffer())) };
@@ -128,6 +176,8 @@ type Gesture =
   | { kind: "shape"; tool: ShapeTool; x0: number; y0: number }
   /** Freehand stroke; points are collected here so fast drags never drop any. */
   | { kind: "pen"; shape: Annotation & { type: "pen" } }
+  /** Text box opens on pointer up, so the click's own focus change can't close it. */
+  | { kind: "text"; at: Point }
   | { kind: "move"; x0: number; y0: number; original: SelectionRect }
   | { kind: "resize"; handle: Handle; original: SelectionRect };
 
@@ -200,8 +250,12 @@ export function CaptureOverlay() {
   const [hoverCursor, setHoverCursor] = useState("crosshair");
   const [tool, setTool] = useState<DrawTool | null>(null);
   const [color, setColor] = useState(INK_COLORS[0]);
+  const [width, setWidth] = useState<number>(STROKE_WIDTHS[0]);
   const [shapes, setShapes] = useState<Annotation[]>([]);
+  /** Undone shapes, most recent last; cleared when a new shape is added. */
+  const [undone, setUndone] = useState<Annotation[]>([]);
   const [draft, setDraft] = useState<Annotation | null>(null);
+  const [text, setText] = useState<TextDraft | null>(null);
   const sessionRef = useRef<number | null>(null);
   const gesture = useRef<Gesture | null>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -230,7 +284,9 @@ export function CaptureOverlay() {
         setHoverCursor("crosshair");
         setTool(null);
         setShapes([]);
+        setUndone([]);
         setDraft(null);
+        setText(null);
       });
       await api.overlayReady(s.session);
     };
@@ -245,6 +301,46 @@ export function CaptureOverlay() {
 
   const shapesRef = useRef(shapes);
   shapesRef.current = shapes;
+  const undoneRef = useRef(undone);
+  undoneRef.current = undone;
+
+  const addShape = useCallback((shape: Annotation) => {
+    setShapes((list) => [...list, shape]);
+    setUndone([]);
+  }, []);
+  const undo = useCallback(() => {
+    const list = shapesRef.current;
+    if (list.length === 0) return;
+    setUndone([...undoneRef.current, list[list.length - 1]]);
+    setShapes(list.slice(0, -1));
+  }, []);
+  const redo = useCallback(() => {
+    const list = undoneRef.current;
+    if (list.length === 0) return;
+    setShapes([...shapesRef.current, list[list.length - 1]]);
+    setUndone(list.slice(0, -1));
+  }, []);
+
+  const commitText = (value: string) => {
+    const t = text;
+    setText(null);
+    setTool(null);
+    const trimmed = value.replace(/\s+$/, "");
+    if (!t || !trimmed) return;
+    const { w, h } = measureText(trimmed, t.fontSize);
+    addShape({
+      id: shapeId(),
+      type: "text",
+      text: trimmed,
+      size: t.fontSize,
+      x: t.x,
+      y: t.y,
+      w,
+      h,
+      color: t.color,
+      width,
+    });
+  };
 
   const finish = useCallback((selection: SelectionRect, action?: FinishAction) => {
     const s = sessionRef.current;
@@ -255,13 +351,15 @@ export function CaptureOverlay() {
     setRect(null);
     setAdjusting(false);
     setShapes([]);
+    setUndone([]);
     setDraft(null);
+    setText(null);
     if (s === null) return;
     if (!action) {
       void api.finishSelection(s, selection);
       return;
     }
-    void markupFor(drawn, selection, action)
+    void markupFor(drawn, selection, action, frozenCanvas.current)
       .catch(() => undefined)
       .then((markup) => api.finishSelection(s, selection, action, markup));
   }, []);
@@ -289,9 +387,15 @@ export function CaptureOverlay() {
         if (key === "enter" || ((e.metaKey || e.ctrlKey) && key === "c")) {
           e.preventDefault();
           finish(rect, "copy");
+        } else if (
+          ((e.metaKey || e.ctrlKey) && e.shiftKey && key === "z") ||
+          (e.ctrlKey && key === "y")
+        ) {
+          e.preventDefault();
+          redo();
         } else if ((e.metaKey || e.ctrlKey) && key === "z") {
           e.preventDefault();
-          setShapes((list) => list.slice(0, -1));
+          undo();
         } else if (!e.metaKey && !e.ctrlKey && !e.altKey) {
           if (key === "e") {
             e.preventDefault();
@@ -300,6 +404,8 @@ export function CaptureOverlay() {
             setTool(null);
           } else if (TOOL_KEYS[key]) {
             const next = TOOL_KEYS[key];
+            if ((next === "blur" || next === "pixelate") && !frozen) return;
+            e.preventDefault();
             setTool((t) => (t === next ? null : next));
           }
         }
@@ -307,27 +413,24 @@ export function CaptureOverlay() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [cancel, finish, adjusting, rect]);
+  }, [cancel, finish, undo, redo, adjusting, rect, frozen]);
 
   const onPointerDown = (e: React.PointerEvent) => {
-    if (e.button !== 0 || session === null) return;
+    // While typing, a click elsewhere only commits the text (the text box's blur does that).
+    if (e.button !== 0 || session === null || text) return;
     const { clientX: x, clientY: y } = e;
     const handle = adjusting && rect ? handleAt(rect, x, y) : null;
     if (adjusting && rect && handle) {
       gesture.current = { kind: "resize", handle, original: rect };
+    } else if (adjusting && rect && tool === "text") {
+      gesture.current = { kind: "text", at: { x, y } };
     } else if (adjusting && rect && tool === "pen") {
-      const shape = {
-        id: `o${nextShape++}`,
-        type: "pen" as const,
-        points: [{ x, y }],
-        color,
-        width: STROKE_WIDTHS[1],
-      };
+      const shape = { id: shapeId(), type: "pen" as const, points: [{ x, y }], color, width };
       gesture.current = { kind: "pen", shape };
       setDraft(shape);
-    } else if (adjusting && rect && tool && tool !== "pen") {
+    } else if (adjusting && rect && tool && tool !== "pen" && tool !== "text") {
       gesture.current = { kind: "shape", tool, x0: x, y0: y };
-      setDraft(shapeFrom(tool, color, x, y, x, y));
+      setDraft(shapeFrom(tool, color, width, x, y, x, y));
     } else if (adjusting && rect && inside(rect, x, y)) {
       gesture.current = { kind: "move", x0: x, y0: y, original: rect };
     } else {
@@ -355,13 +458,14 @@ export function CaptureOverlay() {
       }
       return;
     }
+    if (g.kind === "text") return;
     if (g.kind === "pen") {
       const { points } = g.shape;
       const last = points[points.length - 1];
       if (Math.hypot(x - last.x, y - last.y) < 1.5) return;
       g.shape = { ...g.shape, points: [...points, { x, y }] };
       setDraft(g.shape);
-    } else if (g.kind === "shape") setDraft(shapeFrom(g.tool, color, g.x0, g.y0, x, y));
+    } else if (g.kind === "shape") setDraft(shapeFrom(g.tool, color, width, g.x0, g.y0, x, y));
     else if (g.kind === "draw") setRect(rectFrom(g.x0, g.y0, x, y));
     else if (g.kind === "move") setRect(moved(g.original, x - g.x0, y - g.y0));
     else setRect(resized(g.original, g.handle, x, y));
@@ -373,18 +477,30 @@ export function CaptureOverlay() {
     if (!g) return;
     const x = clampX(e.clientX);
     const y = clampY(e.clientY);
+    if (g.kind === "text") {
+      const size = textSize(width);
+      // Centered vertically on the click, like a text cursor.
+      setText({
+        id: null,
+        text: "",
+        color,
+        fontSize: size,
+        scaleX: 1,
+        x: g.at.x,
+        y: g.at.y - size * 0.6,
+      });
+      return;
+    }
     if (g.kind === "pen") {
       setDraft(null);
       // A click without dragging leaves a dot.
-      const shape = g.shape;
-      setShapes((list) => [...list, shape]);
+      addShape(g.shape);
       return;
     }
     if (g.kind === "shape") {
       setDraft(null);
       if (Math.hypot(x - g.x0, y - g.y0) >= MIN_SHAPE) {
-        const shape = shapeFrom(g.tool, color, g.x0, g.y0, x, y);
-        setShapes((list) => [...list, shape]);
+        addShape(shapeFrom(g.tool, color, width, g.x0, g.y0, x, y));
       }
       return;
     }
@@ -413,7 +529,14 @@ export function CaptureOverlay() {
   };
 
   const scale = window.devicePixelRatio || 1;
-  const cursor = gesture.current?.kind === "move" ? "move" : adjusting ? hoverCursor : "crosshair";
+  const cursor =
+    gesture.current?.kind === "move"
+      ? "move"
+      : adjusting && tool === "text" && hoverCursor === "crosshair"
+        ? "text"
+        : adjusting
+          ? hoverCursor
+          : "crosshair";
 
   // Shapes are painted with the editor's renderer, so they look the same after Copy or Edit.
   useEffect(() => {
@@ -429,9 +552,10 @@ export function CaptureOverlay() {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, w, h);
     if (rect && (shapes.length > 0 || draft)) {
-      paintShapes(ctx, draft ? [...shapes, draft] : shapes, rect, scale);
+      const frame = frozen ? frozenCanvas.current : null;
+      paintShapes(ctx, draft ? [...shapes, draft] : shapes, rect, scale, frame);
     }
-  }, [shapes, draft, rect, scale]);
+  }, [shapes, draft, rect, scale, frozen]);
 
   return (
     <div
@@ -482,14 +606,22 @@ export function CaptureOverlay() {
                   />
                 );
               })}
+              {text && (
+                <TextEditor draft={text} onCommit={commitText} onCancel={() => setText(null)} />
+              )}
               <ActionBar
                 rect={rect}
                 tool={tool}
                 color={color}
+                width={width}
+                canRedact={frozen}
                 canUndo={shapes.length > 0}
+                canRedo={undone.length > 0}
                 onTool={(t) => setTool((current) => (current === t ? null : t))}
                 onColor={setColor}
-                onUndo={() => setShapes((list) => list.slice(0, -1))}
+                onWidth={setWidth}
+                onUndo={undo}
+                onRedo={redo}
                 onCopy={() => finish(rect, "copy")}
                 onEdit={() => finish(rect, "edit")}
                 onCancel={cancel}
@@ -518,8 +650,10 @@ function SizeLabel({ rect, scale }: { rect: SelectionRect; scale: number }) {
   );
 }
 
-/** Fits the tools, color, undo, Copy, Edit and Cancel; grow it when adding a button. */
-const BAR_WIDTH = 440;
+/** Fits the tools, ink, undo, redo, Copy, Edit and Cancel; grow it when adding a button. */
+const BAR_WIDTH = 590;
+/** Height of the color and line width popover. */
+const PALETTE_HEIGHT = 96;
 const BAR_HEIGHT = 40;
 
 /**
@@ -530,10 +664,15 @@ function ActionBar({
   rect,
   tool,
   color,
+  width,
+  canRedact,
   canUndo,
+  canRedo,
   onTool,
   onColor,
+  onWidth,
   onUndo,
+  onRedo,
   onCopy,
   onEdit,
   onCancel,
@@ -541,10 +680,16 @@ function ActionBar({
   rect: SelectionRect;
   tool: DrawTool | null;
   color: string;
+  width: number;
+  /** Blur and pixelate need the frozen screen. */
+  canRedact: boolean;
   canUndo: boolean;
+  canRedo: boolean;
   onTool: (tool: DrawTool) => void;
   onColor: (color: string) => void;
+  onWidth: (width: number) => void;
   onUndo: () => void;
+  onRedo: () => void;
   onCopy: () => void;
   onEdit: () => void;
   onCancel: () => void;
@@ -578,8 +723,9 @@ function ActionBar({
           title={`${t.label} (${t.key})`}
           aria-label={t.label}
           aria-pressed={tool === t.id}
+          disabled={(t.id === "blur" || t.id === "pixelate") && !canRedact}
           onClick={() => onTool(t.id)}
-          className={`flex size-8 shrink-0 items-center justify-center rounded-lg ${
+          className={`flex size-8 shrink-0 items-center justify-center rounded-lg disabled:opacity-35 disabled:hover:bg-transparent ${
             tool === t.id ? "bg-white/20 text-sky-300" : "text-white/85 hover:bg-white/10"
           }`}
         >
@@ -600,8 +746,8 @@ function ActionBar({
       <div className="relative">
         <button
           type="button"
-          title="Color"
-          aria-label="Color"
+          title="Color and line width"
+          aria-label="Color and line width"
           aria-expanded={palette}
           onClick={() => setPalette((open) => !open)}
           className="flex size-8 shrink-0 items-center justify-center rounded-lg hover:bg-white/10"
@@ -613,50 +759,60 @@ function ActionBar({
         </button>
         {palette && (
           <div
-            className={`absolute left-1/2 flex -translate-x-1/2 gap-1.5 rounded-xl bg-neutral-900/95 p-2 shadow-2xl ring-1 ring-white/10 backdrop-blur-md ${
-              top > rect.y && top + BAR_HEIGHT + 48 <= window.innerHeight ? "top-10" : "bottom-10"
+            className={`absolute left-1/2 flex -translate-x-1/2 flex-col gap-2 rounded-xl bg-neutral-900/95 p-2 shadow-2xl ring-1 ring-white/10 backdrop-blur-md ${
+              top > rect.y && top + BAR_HEIGHT + PALETTE_HEIGHT <= window.innerHeight
+                ? "top-10"
+                : "bottom-10"
             }`}
           >
-            {INK_COLORS.map((c) => (
-              <button
-                key={c}
-                type="button"
-                aria-label={`Color ${c}`}
-                aria-pressed={c === color}
-                onClick={() => {
-                  onColor(c);
-                  setPalette(false);
-                }}
-                className={`size-5 rounded-full ring-offset-2 ring-offset-neutral-900 ${
-                  c === color ? "ring-2 ring-white" : "ring-1 ring-white/25 hover:ring-white/60"
-                }`}
-                style={{ backgroundColor: c }}
-              />
-            ))}
+            <div className="flex gap-1.5">
+              {INK_COLORS.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  aria-label={`Color ${c}`}
+                  aria-pressed={c === color}
+                  onClick={() => onColor(c)}
+                  className={`size-5 rounded-full ring-offset-2 ring-offset-neutral-900 ${
+                    c === color ? "ring-2 ring-white" : "ring-1 ring-white/25 hover:ring-white/60"
+                  }`}
+                  style={{ backgroundColor: c }}
+                />
+              ))}
+            </div>
+            <div className="grid grid-cols-3 gap-1 rounded-lg bg-white/[0.06] p-1">
+              {STROKE_WIDTHS.map((w, i) => (
+                <button
+                  key={w}
+                  type="button"
+                  title={WIDTH_NAMES[i]}
+                  aria-label={WIDTH_NAMES[i]}
+                  aria-pressed={w === width}
+                  onClick={() => {
+                    onWidth(w);
+                    setPalette(false);
+                  }}
+                  className="flex h-7 items-center justify-center rounded-md text-white/70 hover:bg-white/10 aria-pressed:bg-white/20"
+                >
+                  <span
+                    className="w-6 rounded-full"
+                    style={{
+                      height: w * 0.6,
+                      backgroundColor: w === width ? color : "currentColor",
+                    }}
+                  />
+                </button>
+              ))}
+            </div>
           </div>
         )}
       </div>
-      <button
-        type="button"
-        title="Undo (⌘Z)"
-        aria-label="Undo"
-        disabled={!canUndo}
-        onClick={onUndo}
-        className="flex size-8 shrink-0 items-center justify-center rounded-lg text-white/85 hover:bg-white/10 disabled:opacity-35 disabled:hover:bg-transparent"
-      >
-        <svg
-          viewBox="0 0 20 20"
-          className="size-4"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.7"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
-        >
-          <path d="M7.5 5 4 8.5 7.5 12M4.5 8.5h7a4 4 0 0 1 0 8H9" />
-        </svg>
-      </button>
+      <HistoryButton label="Undo (⌘Z)" disabled={!canUndo} onClick={onUndo}>
+        <path d="M7.5 5 4 8.5 7.5 12M4.5 8.5h7a4 4 0 0 1 0 8H9" />
+      </HistoryButton>
+      <HistoryButton label="Redo (⇧⌘Z)" disabled={!canRedo} onClick={onRedo}>
+        <path d="M12.5 5 16 8.5 12.5 12M15.5 8.5h-7a4 4 0 0 0 0 8H11" />
+      </HistoryButton>
       <div className="mx-0.5 h-5 w-px shrink-0 bg-white/15" />
       <button
         type="button"
@@ -716,5 +872,41 @@ function ActionBar({
         </svg>
       </button>
     </div>
+  );
+}
+
+function HistoryButton({
+  label,
+  disabled,
+  onClick,
+  children,
+}: {
+  label: string;
+  disabled: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      title={label}
+      aria-label={label}
+      disabled={disabled}
+      onClick={onClick}
+      className="flex size-8 shrink-0 items-center justify-center rounded-lg text-white/85 hover:bg-white/10 disabled:opacity-35 disabled:hover:bg-transparent"
+    >
+      <svg
+        viewBox="0 0 20 20"
+        className="size-4"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        {children}
+      </svg>
+    </button>
   );
 }

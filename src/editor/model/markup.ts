@@ -1,4 +1,4 @@
-import type { Annotation, Point } from "./types";
+import type { Annotation, BoxAnnotation, Point } from "./types";
 
 // Annotations drawn in the selection overlay arrive in logical px relative to the selection;
 // the editor works in source pixels. The payload went through Rust as opaque JSON, so every
@@ -10,6 +10,9 @@ const isPoint = (v: unknown): v is Point => {
   const p = v as Point | null;
   return typeof p === "object" && p !== null && num(p.x) && num(p.y);
 };
+
+type BoxType = BoxAnnotation["type"];
+const BOX_TYPES: readonly string[] = ["rect", "ellipse", "blur", "pixelate"] satisfies BoxType[];
 
 /** Valid overlay annotations, scaled by `scale` into source pixels. Invalid entries are dropped. */
 export function markupToAnnotations(items: unknown, scale: number): Annotation[] {
@@ -39,14 +42,13 @@ export function markupToAnnotations(items: unknown, scale: number): Annotation[]
         from: { x: a.from.x * s, y: a.from.y * s },
         to: { x: a.to.x * s, y: a.to.y * s },
       });
-    } else if (
-      (a.type === "rect" || a.type === "ellipse") &&
-      num(a.x) &&
-      num(a.y) &&
-      num(a.w) &&
-      num(a.h)
-    ) {
-      out.push({ ...base, type: a.type, x: a.x * s, y: a.y * s, w: a.w * s, h: a.h * s });
+    } else if (num(a.x) && num(a.y) && num(a.w) && num(a.h)) {
+      const box = { x: a.x * s, y: a.y * s, w: a.w * s, h: a.h * s };
+      if (BOX_TYPES.includes(a.type as BoxType)) {
+        out.push({ ...base, ...box, type: a.type as BoxType });
+      } else if (a.type === "text" && str(a.text) && a.text && num(a.size) && a.size > 0) {
+        out.push({ ...base, ...box, type: "text", text: a.text, size: a.size * s });
+      }
     }
   }
   return out;
